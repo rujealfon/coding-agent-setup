@@ -4,9 +4,15 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
+import termios
+import tty
+
+TOOLS = ("codex", "claude", "opencode", "grok")
 
 
 def opencode_agents_match(installed, desired):
@@ -26,10 +32,161 @@ def opencode_agents_match(installed, desired):
     )
 
 
+def read_menu_key(fd):
+    """Read one menu key. Arrows move, Space toggles, and Enter confirms."""
+    char = os.read(fd, 1)
+    if not char:
+        return "eof"
+    if char in (b"\r", b"\n"):
+        return "enter"
+    if char == b" ":
+        return "space"
+    if char == b"\x03":
+        return "interrupt"
+    if char != b"\x1b":
+        return "other"
+    sequence = b""
+    while len(sequence) < 2:
+        piece = os.read(fd, 2 - len(sequence))
+        if not piece:
+            return "eof"
+        sequence += piece
+    if sequence in (b"[A", b"OA"):
+        return "up"
+    if sequence in (b"[B", b"OB"):
+        return "down"
+    return "other"
+
+
+def replace_menu(lines, previous_lines):
+    """Draw lines over the previous menu and clear any leftover rows."""
+    parts = [f"\033[{previous_lines}A"] if previous_lines else []
+    parts.extend(f"\r\033[2K{line}\n" for line in lines)
+    leftover = max(0, previous_lines - len(lines))
+    parts.extend("\r\033[2K\n" for _ in range(leftover))
+    if leftover:
+        parts.append(f"\033[{leftover}A")
+    sys.stdout.write("".join(parts))
+    sys.stdout.flush()
+    return len(lines)
+
+
+def render_scope_menu(title, labels, checked_rows, cursor, previous_lines, hint):
+    """Draw a checkbox menu, replacing the previous draw in place."""
+    lines = [f"\033[36m◆\033[0m {title}"]
+    for index, (name, detail) in enumerate(labels):
+        pointer = "❯" if index == cursor else " "
+        if index in checked_rows:
+            suffix = f" \033[2m{detail}\033[0m" if detail else ""
+            lines.append(f"{pointer} \033[92m●\033[0m {name}{suffix}")
+        else:
+            text = f"{name} {detail}".strip()
+            lines.append(f"\033[2m{pointer} ○ {text}\033[0m")
+    lines.append(f"\033[2m{hint}\033[0m")
+    return replace_menu(lines, previous_lines)
+
+
+def render_cancelled(title, summary, previous_lines):
+    """Replace the open menu with the struck-through choice and a red cancel line."""
+    lines = [
+        f"\033[36m◆\033[0m {title}",
+        f"  \033[2;9m{summary}\033[0m",
+        "  \033[3;31mCancelled\033[0m",
+    ]
+    replace_menu(lines, previous_lines)
+
+
+def selection_summary(checked):
+    if checked == set(TOOLS):
+        return "All"
+    labels = {"codex": "Codex", "claude": "Claude", "opencode": "OpenCode", "grok": "Grok"}
+    names = [labels[name] for name in TOOLS if name in checked]
+    return ", ".join(names) if names else "None"
+
+
+def prompt_for_tools(parser, operation):
+    """Ask for any combination of tools. All checks or clears every tool."""
+    title = f"{operation.capitalize()} scope"
+    labels = (
+        ("All", "(Codex, Claude, OpenCode, and Grok)"),
+        ("Codex", ""),
+        ("Claude", ""),
+        ("OpenCode", ""),
+        ("Grok", ""),
+    )
+    checked = set(TOOLS)
+    cursor = 0
+    default_hint = "↑/↓ to navigate • Space: toggle • Enter: confirm"
+    hint = default_hint
+    fd = sys.stdin.fileno()
+    previous = termios.tcgetattr(fd)
+    drawn = 0
+    try:
+        # Keep keystrokes already typed. The default setraw flushes unread input.
+        tty.setraw(fd, termios.TCSANOW)
+        sys.stdout.write("\033[?25l")
+        sys.stdout.flush()
+        while True:
+            rows = {index + 1 for index, name in enumerate(TOOLS) if name in checked}
+            if len(rows) == len(TOOLS):
+                rows.add(0)
+            drawn = render_scope_menu(title, labels, rows, cursor, drawn, hint)
+            key = read_menu_key(fd)
+            hint = default_hint
+            if key == "up":
+                cursor = (cursor - 1) % len(labels)
+            elif key == "down":
+                cursor = (cursor + 1) % len(labels)
+            elif key == "space":
+                if cursor == 0:
+                    checked = set() if checked == set(TOOLS) else set(TOOLS)
+                else:
+                    name = TOOLS[cursor - 1]
+                    if name in checked:
+                        checked.remove(name)
+                    else:
+                        checked.add(name)
+            elif key == "enter":
+                if not checked:
+                    hint = "Select at least one tool • Space: toggle • Enter: confirm"
+                    continue
+                return tuple(name for name in TOOLS if name in checked)
+            elif key == "interrupt":
+                render_cancelled(title, selection_summary(checked), drawn)
+                parser.exit(130)
+            elif key == "eof":
+                parser.exit(1, "No selection received.\n")
+    finally:
+        sys.stdout.write("\033[?25h")
+        sys.stdout.flush()
+        termios.tcsetattr(fd, termios.TCSADRAIN, previous)
+
+
+def resolve_tools(parser, args):
+    """Use --tool when given. Otherwise prompt on a terminal, or select every tool."""
+    if args.tool:
+        if "all" in args.tool and set(args.tool) != {"all"}:
+            parser.error("--tool all cannot be combined with a specific tool")
+        if "all" in args.tool:
+            return TOOLS
+        return tuple(name for name in TOOLS if name in args.tool)
+    # Pipes and tests keep the previous behavior of operating on every tool.
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        operation = "uninstall" if args.uninstall else "update" if args.update else "install"
+        return prompt_for_tools(parser, operation)
+    return TOOLS
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target-home", type=Path, default=Path.home())
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--tool",
+        action="append",
+        choices=("all", *TOOLS),
+        help="Operate on these tools. Repeat to select more than one. Prompts on a terminal when omitted.",
+    )
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--update", action="store_true", help="Back up and replace recognized earlier setup files")
     action.add_argument("--uninstall", action="store_true", help="Remove recognized setup files and preserve customized files")
@@ -58,6 +215,13 @@ def main():
         ("grok/reviewer.md", ".grok/agents/reviewer.md"),
         ("grok/rules/delegation.md", ".grok/rules/delegation.md"),
     ]
+    prompted = not args.tool and sys.stdin.isatty() and sys.stdout.isatty()
+    selected = resolve_tools(parser, args)
+    selected_names = set(selected)
+    files = [item for item in files if item[0].split("/", 1)[0] in selected_names]
+    if prompted or args.tool:
+        label = "all" if selected_names == set(TOOLS) else ", ".join(selected)
+        print(f"Selected: {label}")
 
     if args.uninstall:
         preserved = False
