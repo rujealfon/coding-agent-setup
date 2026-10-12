@@ -35,8 +35,9 @@ scope decisions, integration, and final verification in the primary agent.
   for meaningful changes and handle trivial edits directly.
 - Resolve missing context and scope dependencies in the primary agent, then resume
   `fast`, `reviewer`, `worker`, or `general-purpose` with `SendMessage` and the
-  additional context. `Explore` and `Plan` cannot be resumed; start a new one. Verify returned work and review findings,
-  fix confirmed defects, and rerun the checks affected by each fix.
+  additional context. `Explore` and `Plan` cannot be resumed; start a new one.
+  Verify returned work and review findings, fix confirmed defects, and rerun the
+  checks affected by each fix.
 
 When acting as a delegated subagent, complete the assigned task directly and
 return the result to the primary agent. Leave further delegation to the primary.
