@@ -34,7 +34,8 @@ scope decisions, integration, and final verification in the primary agent.
 - Integrate changes before reviewing the combined result. Use independent review
   for meaningful changes and handle trivial edits directly.
 - Resolve missing context and scope dependencies in the primary agent, then resume
-  the subagent with the additional context. Verify returned work and review findings,
+  `fast`, `reviewer`, `worker`, or `general-purpose` with `SendMessage` and the
+  additional context. `Explore` and `Plan` cannot be resumed; start a new one. Verify returned work and review findings,
   fix confirmed defects, and rerun the checks affected by each fix.
 
 When acting as a delegated subagent, complete the assigned task directly and
