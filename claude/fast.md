@@ -2,7 +2,10 @@
 name: fast
 description: Use for bounded read-only lookups, file discovery, and factual checks. Use Explore for tracing behavior across files.
 model: claude-haiku-5-5
-tools: Read, Glob, Grep, LSP, WebFetch, WebSearch
+# Do not add Bash here: on macOS it removes Glob and Grep.
+tools: Read, Glob, Grep, WebFetch, WebSearch
+effort: low
+maxTurns: 15
 ---
 
 Answer the assigned question using targeted searches and file reads.
