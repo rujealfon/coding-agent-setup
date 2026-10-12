@@ -217,8 +217,24 @@ to check the available agents. See
 ## Install or upgrade
 
 Install the tools you intend to use and have Python 3 available. The installer
-uses only Python's standard library and installs configuration for all four
-tools. It does not install the tools or configure credentials.
+uses only Python's standard library. It installs configuration and does not
+install the tools or configure credentials.
+
+On a terminal, install, update, and uninstall open a checkbox menu titled
+`Install scope`, `Update scope`, or `Uninstall scope`. Every tool starts
+checked, so `All` and each tool are highlighted. The arrow keys move, Space
+toggles the current row, and Enter confirms every checked tool. Choosing `All`
+checks or clears Codex, Claude, OpenCode, and Grok together. Any combination
+can stay checked.
+A piped or other non-interactive run operates on all four tools. Pass `--tool`
+once per tool to make the same choice without a prompt:
+
+```sh
+python3 install-agents.py --tool grok
+python3 install-agents.py --tool codex --tool grok
+python3 install-agents.py --tool codex --update
+python3 install-agents.py --tool claude --uninstall
+```
 
 From the cloned `coding-agent-setup` directory, preview a fresh installation:
 
@@ -239,7 +255,7 @@ python3 install-agents.py --update --dry-run
 python3 install-agents.py --update
 ```
 
-The installer checks all destinations before writing. Identical files stay as
+The installer checks the selected destinations before writing. Identical files stay as
 they are. With `--update`, it replaces only files that match recorded earlier
 versions in [previous-install-hashes.json](previous-install-hashes.json) and saves
 a backup beside each changed file as `<filename>.bak-<UTC timestamp>`. Customized
@@ -276,8 +292,11 @@ Remove the recognized agent definitions and delegation rules:
 python3 install-agents.py --uninstall
 ```
 
-Uninstall checks the same nineteen destinations as installation. It removes files
-that match the current definitions or recorded earlier versions of this setup.
+Add `--tool opencode` to remove one tool, repeat `--tool` for several, or check
+any combination in the menu. Choosing `All` checks every tool.
+Uninstall checks the same destinations as installation, limited to the tools you
+selected. It removes files that match the current definitions or recorded earlier
+versions of this setup.
 Customized files, empty personal instruction files, symlinks, and directories
 are preserved and reported for manual review. Recognized files are still removed
 when other files need manual review; the command exits with status `1` if any
@@ -322,7 +341,7 @@ coding-agent-setup/
 | `grok/*.md` | Grok Build agent definitions |
 | `codex/AGENTS.md`, `opencode/AGENTS.md` | Provider-specific global delegation instructions |
 | `claude/rules/delegation.md`, `grok/rules/delegation.md` | Provider-specific global delegation rules |
-| `install-agents.py` | Combined installer and uninstaller for all four tools |
+| `install-agents.py` | Combined installer and uninstaller for all four tools, or a selected combination |
 | `install-claude-opencode.py` | Compatibility entry point that calls the combined installer |
 | `previous-install-hashes.json` | Fingerprints of recognized earlier configurations for safe upgrades |
 | `tests/test_uninstall.py` | Tests installation, upgrades, removal, and preservation in temporary home directories |
