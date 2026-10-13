@@ -16,10 +16,12 @@ non-trivial changes, plan and delegate rather than implementing them yourself.
   regressions, security issues, and missing validation.
   For high-risk changes such as auth, migrations, concurrency, or anything hard
   to roll back, pass `model: opus` for that review.
-- Use `oracle` sparingly for architecture or design decisions that are hard to
-  reverse, choices between several viable options, and bugs that two attempts
-  have not fixed. Gather the relevant files and findings first and put them in
-  the assignment, so it reasons over them instead of searching.
+- Use `oracle` before recommending on any architecture or design question: a
+  choice between viable options, a data model, API, or integration decision, or a
+  change that is hard to reverse. Skip it only when the answer is obvious or the
+  question is a small lookup. Also use it for a bug that two attempts have not
+  fixed. Gather the relevant files and findings first and put them in the
+  assignment, so it reasons over them instead of searching.
 - Prefer the configured `reviewer` over plugin reviewers such as
   `agent-skills:code-reviewer`; use a plugin agent only when its specialty (for
   example security audit or test design) is what the task needs.
