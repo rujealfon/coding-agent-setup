@@ -28,7 +28,7 @@ class UninstallTests(unittest.TestCase):
         installed = self.run_command()
         self.assertEqual(installed.returncode, 0, installed.stderr)
         self.installed_files = [path for path in self.home.rglob("*") if path.is_file()]
-        self.assertEqual(len(self.installed_files), 21)
+        self.assertEqual(len(self.installed_files), 23)
 
     def test_codex_consultant_upgrade_backs_up_previous_files(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-codex.json").read_text())
@@ -63,6 +63,147 @@ class UninstallTests(unittest.TestCase):
         self.assertFalse(consultant.exists())
         self.assertEqual(config.read_bytes(), before[config])
         self.assertEqual(len(list(self.home.rglob("*.bak-*"))), 2)
+
+    def test_opencode_consultant_upgrade_backs_up_previous_files(self):
+        previous = json.loads((ROOT / "tests/fixtures/pre-consultant-opencode.json").read_text())
+        consultant = self.home / ".config/opencode/agents/consultant.md"
+        consultant.unlink()
+        for name, contents in previous.items():
+            (self.home / name).write_text(contents)
+        config = self.home / ".config/opencode/opencode.jsonc"
+        personal = json.loads(config.read_text())
+        personal["mcp"] = {"personal": {"type": "local", "command": ["my-mcp"]}}
+        personal["agents"]["personal"] = {"model": "my-provider/my-model"}
+        config.write_text(json.dumps(personal, indent=4) + "\n\n")
+        before = self.snapshot(self.home)
+
+        preview = self.run_command("--tool", "opencode", "--update", "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
+
+        updated = self.run_command("--tool", "opencode", "--update")
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        self.assertEqual(consultant.read_bytes(), (ROOT / "opencode/consultant.md").read_bytes())
+        backups = {}
+        for name, contents in previous.items():
+            installed = self.home / name
+            source = "opencode/AGENTS.md" if name.endswith("AGENTS.md") else "opencode/inspector.md"
+            self.assertEqual(installed.read_bytes(), (ROOT / source).read_bytes())
+            matches = list(installed.parent.glob(installed.name + ".bak-*"))
+            self.assertEqual(len(matches), 1)
+            self.assertEqual(matches[0].read_bytes(), contents.encode())
+            backups[str(matches[0].relative_to(self.home))] = contents.encode()
+        upgraded = self.snapshot(self.home)
+        self.assertEqual({name: data for name, data in upgraded.items() if ".bak-" in name}, backups)
+        self.assertEqual(config.read_bytes(), before[str(config.relative_to(self.home))])
+        self.assertEqual({name: data for name, data in upgraded.items()
+                          if not name.startswith(".config/opencode/")},
+                         {name: data for name, data in before.items()
+                          if not name.startswith(".config/opencode/")})
+
+        removed = self.run_command("--tool", "opencode", "--uninstall")
+        self.assertEqual(removed.returncode, 1, removed.stderr)
+        self.assertFalse(consultant.exists())
+        self.assertEqual(self.snapshot(self.home), {
+            **{name: data for name, data in before.items()
+               if not name.startswith(".config/opencode/") or name.endswith("opencode.jsonc")},
+            **backups,
+        })
+
+    def test_opencode_consultant_and_inspector_models_and_permissions(self):
+        expected_permissions = ['  - action: "*"', '    resource: "*"', '    effect: deny']
+        for action in ("read", "glob", "grep", "webfetch", "websearch"):
+            expected_permissions.extend((f"  - action: {action}", '    resource: "*"', '    effect: allow'))
+        for agent, model in (("consultant", "glm-5.3-flash#max"),
+                             ("inspector", "deepseek-v4.1-flash#max")):
+            with self.subTest(agent=agent):
+                installed = self.home / f".config/opencode/agents/{agent}.md"
+                self.assertEqual(installed.read_bytes(), (ROOT / f"opencode/{agent}.md").read_bytes())
+                frontmatter = installed.read_text().split("---\n", 2)[1]
+                self.assertIn(f"model: opencode-go/{model}\n", frontmatter)
+                self.assertIn("mode: subagent\n", frontmatter)
+                # Exact allowlist plus the deny-all rule excludes shell, edits, and subagents.
+                self.assertEqual(frontmatter.split("permissions:\n", 1)[1].splitlines(), expected_permissions)
+
+    def test_customized_opencode_consultant_blocks_upgrade_without_mutation(self):
+        previous = json.loads((ROOT / "tests/fixtures/pre-consultant-opencode.json").read_text())
+        for name, contents in previous.items():
+            (self.home / name).write_text(contents)
+        consultant = self.home / ".config/opencode/agents/consultant.md"
+        consultant.write_text("My personal consultant\n")
+        before = self.snapshot(self.home)
+
+        result = self.run_command("--tool", "opencode", "--update")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(str(consultant), result.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
+
+    def test_grok_consultant_upgrade_preserves_backup_and_personal_settings(self):
+        previous = json.loads((ROOT / "tests/fixtures/pre-consultant-grok.json").read_text())
+        consultant = self.home / ".grok/agents/consultant.md"
+        consultant.unlink()
+        for name, contents in previous.items():
+            (self.home / name).write_text(contents)
+        personal = {
+            ".grok/config.toml": b'model = "personal-model"\n',
+            ".grok/credentials.json": b'{"apiKey": "dummy-test-key"}\n',
+        }
+        for name, contents in personal.items():
+            (self.home / name).write_bytes(contents)
+        before = self.snapshot(self.home)
+
+        preview = self.run_command("--tool", "grok", "--update", "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
+
+        updated = self.run_command("--tool", "grok", "--update")
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        self.assertEqual(consultant.read_bytes(), (ROOT / "grok/consultant.md").read_bytes())
+        policy = self.home / ".grok/rules/delegation.md"
+        self.assertEqual(policy.read_bytes(), (ROOT / "grok/rules/delegation.md").read_bytes())
+        backups = list(self.home.rglob("*.bak-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].parent, policy.parent)
+        self.assertTrue(backups[0].name.startswith(policy.name + ".bak-"))
+        self.assertEqual(backups[0].read_bytes(), previous[str(policy.relative_to(self.home))].encode())
+        upgraded = self.snapshot(self.home)
+        self.assertEqual({name: data for name, data in upgraded.items()
+                          if not name.startswith(".grok/") or name in personal},
+                         {name: data for name, data in before.items()
+                          if not name.startswith(".grok/") or name in personal})
+
+        removed = self.run_command("--tool", "grok", "--uninstall")
+        self.assertEqual(removed.returncode, 0, removed.stderr)
+        self.assertFalse(consultant.exists())
+        self.assertEqual(self.snapshot(self.home), {
+            **{name: data for name, data in before.items()
+               if not name.startswith(".grok/") or name in personal},
+            str(backups[0].relative_to(self.home)): previous[str(policy.relative_to(self.home))].encode(),
+        })
+
+    def test_grok_consultant_and_inspector_models_and_capabilities(self):
+        for agent, effort in (("consultant", "xhigh"), ("inspector", "high")):
+            with self.subTest(agent=agent):
+                installed = self.home / f".grok/agents/{agent}.md"
+                self.assertEqual(installed.read_bytes(), (ROOT / f"grok/{agent}.md").read_bytes())
+                frontmatter = installed.read_text().split("---\n", 2)[1]
+                self.assertIn(f"name: {agent}\n", frontmatter)
+                self.assertIn("model: grok-4.7\n", frontmatter)
+                self.assertIn(f"effort: {effort}\n", frontmatter)
+                self.assertIn("capabilityMode: read-only\n", frontmatter)
+
+    def test_customized_grok_consultant_blocks_upgrade_without_mutation(self):
+        previous = json.loads((ROOT / "tests/fixtures/pre-consultant-grok.json").read_text())
+        for name, contents in previous.items():
+            (self.home / name).write_text(contents)
+        consultant = self.home / ".grok/agents/consultant.md"
+        consultant.write_text("My personal consultant\n")
+        before = self.snapshot(self.home)
+
+        result = self.run_command("--tool", "grok", "--update")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(str(consultant), result.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
 
     def run_command(self, *arguments):
         return subprocess.run(
@@ -276,6 +417,7 @@ class UninstallTests(unittest.TestCase):
             ".grok/agents/runner.md": "grok/runner.md",
             ".grok/agents/fixer.md": "grok/fixer.md",
             ".grok/agents/inspector.md": "grok/inspector.md",
+            ".grok/agents/consultant.md": "grok/consultant.md",
             ".grok/rules/delegation.md": "grok/rules/delegation.md",
         }
         installed = {
@@ -566,6 +708,7 @@ class UninstallTests(unittest.TestCase):
                 ".grok/agents/runner.md",
                 ".grok/agents/fixer.md",
                 ".grok/agents/inspector.md",
+                ".grok/agents/consultant.md",
                 ".grok/rules/delegation.md",
             },
         )
@@ -629,6 +772,7 @@ class UninstallTests(unittest.TestCase):
                 ".grok/agents/runner.md",
                 ".grok/agents/fixer.md",
                 ".grok/agents/inspector.md",
+                ".grok/agents/consultant.md",
                 ".grok/rules/delegation.md",
             },
         )
@@ -640,7 +784,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("Install scope", output)
         self.assertIn("Selected: all", output)
         self.assertGreaterEqual(output.count("●"), len(("codex", "claude", "opencode", "grok")) + 1)
-        self.assertEqual(len(self.installed_relative_paths(home)), 21)
+        self.assertEqual(len(self.installed_relative_paths(home)), 23)
 
     def test_interactive_update_confirms_the_highlighted_scope(self):
         before = {path: path.read_bytes() for path in self.installed_files}
@@ -664,6 +808,7 @@ class UninstallTests(unittest.TestCase):
                 ".config/opencode/agents/runner.md",
                 ".config/opencode/agents/fixer.md",
                 ".config/opencode/agents/inspector.md",
+                ".config/opencode/agents/consultant.md",
                 ".config/opencode/opencode.jsonc",
                 ".config/opencode/AGENTS.md",
             },
@@ -701,6 +846,7 @@ class UninstallTests(unittest.TestCase):
                 ".grok/agents/runner.md",
                 ".grok/agents/fixer.md",
                 ".grok/agents/inspector.md",
+                ".grok/agents/consultant.md",
                 ".grok/rules/delegation.md",
             },
         )
@@ -713,7 +859,7 @@ class UninstallTests(unittest.TestCase):
         )
         self.assertEqual(returncode, 0, output)
         self.assertIn("Selected: all", output)
-        self.assertEqual(len(self.installed_relative_paths(home)), 21)
+        self.assertEqual(len(self.installed_relative_paths(home)), 23)
 
     def test_interactive_cancel_is_red_and_changes_nothing(self):
         home = self.fresh_home("interactive-cancel")
