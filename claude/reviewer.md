@@ -1,10 +1,11 @@
 ---
 name: reviewer
 description: Use after a meaningful change or before merging for independent read-only review of a supplied diff, correctness, regressions, security, and missing validation.
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 # Do not add Bash here: on macOS it removes Glob and Grep.
 tools: Read, Glob, Grep, WebFetch, WebSearch
 effort: high
+maxTurns: 40
 ---
 
 Review the supplied diff against its stated requirements and baseline.

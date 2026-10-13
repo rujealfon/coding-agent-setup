@@ -204,6 +204,7 @@ def main():
         ("claude/fast.md", ".claude/agents/fast.md"),
         ("claude/worker.md", ".claude/agents/worker.md"),
         ("claude/reviewer.md", ".claude/agents/reviewer.md"),
+        ("claude/oracle.md", ".claude/agents/oracle.md"),
         ("claude/rules/delegation.md", ".claude/rules/delegation.md"),
         ("opencode/fast.md", ".config/opencode/agents/fast.md"),
         ("opencode/worker.md", ".config/opencode/agents/worker.md"),

@@ -12,13 +12,14 @@ The delegation rules apply across projects on the machine where you install them
 | Tool | `fast` | `worker` | `reviewer` | `explorer` | `default` | `explore` | `general` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
-| Claude Code | Haiku 5.5 | Sonnet 5.5 | Opus 5.5 | N/A | N/A | N/A | N/A |
+| Claude Code | Haiku 5.5 | Sonnet 5.5 | Sonnet 5.5 | N/A | N/A | N/A | N/A |
 | OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, medium | `opencode-go/deepseek-v4.1-flash`, max |
 | Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | N/A | N/A | N/A | N/A |
 
 - `fast` performs simple lookups, targeted searches, and mechanical checks.
 - `worker` implements defined changes within clear file ownership and verifies the affected behavior.
 - `reviewer` independently assesses correctness, regressions, security issues, and missing validation with read-only tools.
+- `oracle` (Claude Code only) advises on architecture, design trade-offs, and stubborn bugs with read-only tools. It uses Opus at high effort and is meant to be called sparingly; the primary agent stays on your main model.
 - `explore` is OpenCode's built-in exploration subagent.
 - `general` is OpenCode's built-in general-purpose subagent.
 
@@ -125,13 +126,13 @@ when no effort is selected at spawn time, remove
 `default_subagent_reasoning_effort` from its `[agents]` table. Explicit spawn
 effort takes precedence over that global default either way.
 
-Claude agent files omit `effort`. On Claude Code v2.1.292 or later, its
-delegation policy asks the primary agent to pass a supported effort level through
-the Agent tool for each non-fork subagent invocation, using the same task guidance
-as Codex. On older versions, agents fall back to the session effort and the primary
-agent reports the limitation. Omitting `effort` alone does not select a level
-based on the task. `CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation
-choices. Unset that environment variable to let the primary agent choose effort.
+Claude agent files set a default `effort` in their frontmatter: low for `fast`,
+medium for `worker`, and high for `reviewer` and `oracle`. On Claude Code v2.1.292
+or later, the delegation policy also asks the primary agent to pass a supported
+effort level through the Agent tool for each non-fork subagent invocation, using
+the same task guidance as Codex. On older versions, the primary agent reports the
+limitation. `CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation choices.
+Unset that environment variable to let the primary agent choose effort.
 The installer leaves Claude settings and shell environment variables unchanged.
 Restart Claude Code after updating to load the new agent definitions.
 [Claude subagent effort](https://code.claude.com/docs/en/sub-agents#choose-an-effort-level)
