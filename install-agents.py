@@ -198,6 +198,7 @@ def main():
         ("codex/runner.toml", ".codex/agents/runner.toml"),
         ("codex/fixer.toml", ".codex/agents/fixer.toml"),
         ("codex/inspector.toml", ".codex/agents/inspector.toml"),
+        ("codex/consultant.toml", ".codex/agents/consultant.toml"),
         ("codex/tracker.toml", ".codex/agents/tracker.toml"),
         ("codex/default.toml", ".codex/agents/default.toml"),
         ("codex/AGENTS.md", ".codex/AGENTS.md"),

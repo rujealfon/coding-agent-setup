@@ -28,7 +28,41 @@ class UninstallTests(unittest.TestCase):
         installed = self.run_command()
         self.assertEqual(installed.returncode, 0, installed.stderr)
         self.installed_files = [path for path in self.home.rglob("*") if path.is_file()]
-        self.assertEqual(len(self.installed_files), 20)
+        self.assertEqual(len(self.installed_files), 21)
+
+    def test_codex_consultant_upgrade_backs_up_previous_files(self):
+        previous = json.loads((ROOT / "tests/fixtures/pre-consultant-codex.json").read_text())
+        consultant = self.home / ".codex/agents/consultant.toml"
+        consultant.unlink()
+        for name, contents in previous.items():
+            (self.home / name).write_text(contents)
+        config = self.home / ".codex/config.toml"
+        config.write_text('model = "personal-model"\n')
+        before = {path: path.read_bytes() for path in self.home.rglob("*") if path.is_file()}
+
+        preview = self.run_command("--tool", "codex", "--update", "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertFalse(consultant.exists())
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+        self.assertEqual(list(self.home.rglob("*.bak-*")), [])
+
+        updated = self.run_command("--tool", "codex", "--update")
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        self.assertEqual(consultant.read_bytes(), (ROOT / "codex/consultant.toml").read_bytes())
+        for name, contents in previous.items():
+            installed = self.home / name
+            source = "codex/AGENTS.md" if name.endswith("AGENTS.md") else "codex/inspector.toml"
+            self.assertEqual(installed.read_bytes(), (ROOT / source).read_bytes())
+            backups = list(installed.parent.glob(installed.name + ".bak-*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_text(), contents)
+        self.assertEqual(config.read_bytes(), before[config])
+
+        removed = self.run_command("--tool", "codex", "--uninstall")
+        self.assertEqual(removed.returncode, 0, removed.stderr)
+        self.assertFalse(consultant.exists())
+        self.assertEqual(config.read_bytes(), before[config])
+        self.assertEqual(len(list(self.home.rglob("*.bak-*"))), 2)
 
     def run_command(self, *arguments):
         return subprocess.run(
@@ -606,7 +640,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("Install scope", output)
         self.assertIn("Selected: all", output)
         self.assertGreaterEqual(output.count("●"), len(("codex", "claude", "opencode", "grok")) + 1)
-        self.assertEqual(len(self.installed_relative_paths(home)), 20)
+        self.assertEqual(len(self.installed_relative_paths(home)), 21)
 
     def test_interactive_update_confirms_the_highlighted_scope(self):
         before = {path: path.read_bytes() for path in self.installed_files}
@@ -660,6 +694,7 @@ class UninstallTests(unittest.TestCase):
                 ".codex/agents/runner.toml",
                 ".codex/agents/fixer.toml",
                 ".codex/agents/inspector.toml",
+                ".codex/agents/consultant.toml",
                 ".codex/agents/tracker.toml",
                 ".codex/agents/default.toml",
                 ".codex/AGENTS.md",
@@ -678,7 +713,7 @@ class UninstallTests(unittest.TestCase):
         )
         self.assertEqual(returncode, 0, output)
         self.assertIn("Selected: all", output)
-        self.assertEqual(len(self.installed_relative_paths(home)), 20)
+        self.assertEqual(len(self.installed_relative_paths(home)), 21)
 
     def test_interactive_cancel_is_red_and_changes_nothing(self):
         home = self.fresh_home("interactive-cancel")

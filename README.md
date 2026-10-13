@@ -1,8 +1,8 @@
 # coding-agent-setup
 
 Personal subagent definitions and delegation rules for Codex, Claude Code,
-OpenCode v2, and Grok Build. Codex and OpenCode get five roles; Claude Code
-gets four and Grok Build gets three.
+OpenCode v2, and Grok Build. Codex gets six roles, OpenCode gets five, Claude Code
+gets four, and Grok Build gets three.
 Each role has a configured model. Codex and Claude Code reasoning effort is chosen
 by the primary agent for each task; other tools keep configured effort levels.
 The delegation rules apply across projects on the machine where you install them.
@@ -10,12 +10,22 @@ The delegation rules apply across projects on the machine where you install them
 ## Models and roles
 
 Meet the **Detective Crew**: Runner gathers facts, Tracker follows leads through
-the codebase, Fixer implements solutions, Inspector checks the work, and Consultant
-advises on the toughest cases. Each tool gets the crew members listed below.
+the codebase, Consultant recommends an approach when the decision is difficult,
+Fixer implements the agreed solution, and Inspector checks the resulting change.
+The primary agent coordinates the case, makes decisions, integrates changes, and
+verifies the outcome. Each tool gets the crew members listed below.
+
+| Crew member | Question it answers | Expected result |
+| --- | --- | --- |
+| **Runner** | Where is it, and what are the facts? | A concise answer with file or source references |
+| **Tracker** | How does this work, and what caused the problem? | Execution paths, likely causes, evidence, and remaining uncertainty |
+| **Consultant** | Which approach should we take, and why? | A recommendation, alternatives, trade-offs, risks, and the next validation step |
+| **Fixer** | Can you implement the agreed solution? | Scoped changes, relevant checks, and their outcomes |
+| **Inspector** | Does this change work correctly, and what did we miss? | Concrete findings with impact and evidence, or no findings with verification limits |
 
 | Tool | `runner` | `fixer` | `inspector` | `consultant` | `tracker` | `default` | `explore` | `general` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6-astra` | N/A | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
+| Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
 | Claude Code | Haiku 5.5 | Sonnet 5.5 | Sonnet 5.5 | Opus 5.5 | N/A | N/A | N/A | N/A |
 | OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, medium | `opencode-go/deepseek-v4.1-flash`, max |
 | Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | N/A | N/A | N/A | N/A | N/A |
@@ -24,7 +34,7 @@ advises on the toughest cases. Each tool gets the crew members listed below.
 - `tracker` (Codex only) traces behavior, dependencies, and likely causes across files without editing code.
 - `fixer` implements defined changes within clear file ownership and verifies the affected behavior.
 - `inspector` independently assesses correctness, regressions, security issues, and missing validation with read-only tools.
-- `consultant` (Claude Code only) advises on architecture, design trade-offs, and stubborn bugs with read-only tools. It uses Opus at high effort and is meant to be called sparingly; the primary agent stays on your main model.
+- `consultant` (Codex and Claude Code) advises on architecture, design trade-offs, and stubborn bugs with inspection tools. It uses Astra in Codex and Opus at high effort in Claude Code; the primary agent stays on your main model. See [consultation and handoffs](#consultation-and-handoffs) for when to call it.
 - `explore` is OpenCode's built-in exploration subagent.
 - `general` is OpenCode's built-in general-purpose subagent.
 
@@ -38,6 +48,37 @@ to Codex `default`, OpenCode `general`, or Claude Code's built-in
 settings; this setup configures only Claude's four custom roles.
 For tools without a matching specialist, the primary agent handles the work or
 splits it into scoped assignments for available agents.
+
+### Consultation and handoffs
+
+Use the stages the case needs: gather evidence → consult when needed → implement
+→ inspect. The primary agent handles small tasks directly and selects specialists
+when delegation improves speed or quality.
+
+Call Consultant before dependent implementation when an architecture or design
+decision remains unresolved. Examples include choosing a module boundary, deciding
+where state should live, or comparing migration strategies with different risks.
+Architecture consultation can happen immediately; the two-attempt threshold
+applies to stubborn bugs. For those bugs, consult after two evidence-based attempts
+have failed, supplying each hypothesis, attempted fix, and observed result.
+
+Give Consultant a specific decision or diagnostic question, relevant code and
+evidence, constraints, viable options, and previous attempts when applicable. It
+returns a recommendation with alternatives, risks, and supporting evidence. For
+a bug, it also identifies the likely cause, evidence for and against it, and the
+cheapest check that would confirm it. The primary agent resolves open questions
+and decides the approach before assigning dependent implementation.
+
+Tracker gathers and traces evidence; Consultant uses that evidence to evaluate
+an uncertain approach. Inspector reviews the implemented change against its
+requirements. An inspector finding may expose a design question that the primary
+agent routes back to Consultant.
+
+For example, a failing test with a clear cause can go directly to Fixer and then
+Inspector. A change with competing designs may need Tracker to map the current
+behavior, Consultant to compare options, Fixer to implement the chosen approach,
+and Inspector to review the combined diff. Give Fixer file ownership and acceptance
+criteria; give Inspector the baseline, diff, requirements, and validation results.
 
 ### Claude orchestration
 
@@ -73,16 +114,18 @@ instructions that these roles and the built-ins do not cover.
 
 ### Codex orchestration
 
-The five roles cover narrow lookup, codebase investigation, implementation,
-independent review, and mixed work. Keep coordination and final verification in
-the primary agent; these custom agents return their assigned work directly.
+The six roles cover narrow lookup, codebase investigation, implementation,
+independent review, consultation, and mixed work. Keep coordination and final
+verification in the primary agent; these custom agents return their assigned work
+directly.
 
 | Agent | Assignment | Configuration |
 | --- | --- | --- |
 | `runner` | Bounded factual lookup or file discovery with references | Luna; read-only sandbox |
 | `tracker` | Trace behavior, dependencies, and likely causes across files | Luna; read-only sandbox |
 | `fixer` | Implement an agreed change within owned files and verify it | Sol; inherited permissions |
-| `inspector` | Review a specified diff for concrete defects and explain their impact | Astra; read-only sandbox |
+| `inspector` | Review a specified diff for concrete defects and explain their impact | Sol; read-only sandbox |
+| `consultant` | Advise on architecture, difficult trade-offs, and stubborn bugs | Astra; read-only sandbox |
 | `default` | Bounded mixed investigation and implementation without a matching specialist | Sol; inherited permissions |
 
 Give each assignment its objective, relevant context, file ownership or read-only
@@ -92,7 +135,10 @@ then integrate before reviewing the combined change. Supply inspectors with the
 baseline, requirements, and validation results. The primary agent verifies findings,
 coordinates fixes, and reruns affected checks. Use only the stages a task needs.
 
-Runner, tracker, and inspector are configured with `sandbox_mode = "read-only"`.
+Follow the [consultation and handoff guidance](#consultation-and-handoffs) when
+choosing between Tracker, Consultant, Fixer, and Inspector.
+
+Runner, tracker, inspector, and consultant are configured with `sandbox_mode = "read-only"`.
 Codex can reapply parent runtime permission overrides when spawning, so these are
 sandbox defaults rather than an unconditional guarantee. A filesystem sandbox also
 does not make external connector tools read-only. Their prompts require inspection
@@ -101,7 +147,7 @@ read-only commands; send checks that need writes to the primary agent or a fixer
 
 Fixers and default agents retain inherited project tools. Further delegation is
 left to the primary agent by instruction, rather than a Claude-style Agent tool
-restriction. All five roles retain their configured models and omit fixed effort.
+restriction. All six roles retain their configured models and omit fixed effort.
 An ambiguous task or weak result should return to the primary agent for a clearer
 assignment or different specialist, rather than spawning an additional hierarchy.
 [Codex agent configuration and permissions](https://learn.chatgpt.com/docs/agent-configuration/subagents)
