@@ -1,5 +1,5 @@
 ---
-name: worker
+name: fixer
 description: Implements assigned changes within clear file ownership and verifies the affected behavior.
 model: grok-4.7
 effort: medium

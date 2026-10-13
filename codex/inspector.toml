@@ -1,4 +1,4 @@
-name = "reviewer"
+name = "inspector"
 description = "Use after a meaningful change or before merging for independent review of a specified diff, correctness, regressions, security, and missing validation."
 model = "gpt-6-astra"
 sandbox_mode = "read-only"

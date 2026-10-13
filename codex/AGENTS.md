@@ -6,11 +6,11 @@ When acting as the primary agent, delegate independent work when it materially
 improves speed or quality. Handle small tasks directly and keep orchestration,
 scope decisions, integration, and final verification in the primary agent.
 
-- Use `fast` for bounded read-only lookups, file discovery, and factual checks.
-- Use `explorer` to trace behavior, dependencies, and likely causes across files
+- Use `runner` for bounded read-only lookups, file discovery, and factual checks.
+- Use `tracker` to trace behavior, dependencies, and likely causes across files
   without editing code.
-- Use `worker` to implement a defined change within assigned files and verify it.
-- Use `reviewer` for independent assessment of a specified diff for correctness,
+- Use `fixer` to implement a defined change within assigned files and verify it.
+- Use `inspector` for independent assessment of a specified diff for correctness,
   regressions, security issues, and missing validation.
 - Use `default` for bounded mixed investigation and implementation when no
   specialist fits.
@@ -21,9 +21,9 @@ scope decisions, integration, and final verification in the primary agent.
   requires a fresh context, supply a self-contained assignment with the necessary
   project instructions and evidence.
 - Give each assignment its objective, relevant context, file ownership or read-only
-  scope, acceptance criteria, and expected evidence. Give reviewers the diff,
+  scope, acceptance criteria, and expected evidence. Give inspectors the diff,
   baseline, requirements, and available test results.
-- Resolve required investigation and decisions before starting dependent workers.
+- Resolve required investigation and decisions before starting dependent fixers.
   Parallelize independent work with distinct file ownership to avoid edit conflicts.
 - Integrate changes before reviewing the combined result. Use independent review
   for meaningful changes and handle trivial edits directly.

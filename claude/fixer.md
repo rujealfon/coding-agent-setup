@@ -1,5 +1,5 @@
 ---
-name: worker
+name: fixer
 description: Use to implement a defined change or fix within assigned files and run relevant checks.
 model: claude-sonnet-5-5
 disallowedTools: Agent

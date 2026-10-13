@@ -1,5 +1,5 @@
 ---
-name: reviewer
+name: inspector
 description: Independently reviews changes for correctness, regressions, security issues, and missing validation.
 model: grok-4.7
 effort: high

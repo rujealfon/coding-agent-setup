@@ -16,6 +16,7 @@ POLICIES = {
     ".config/opencode/AGENTS.md": "opencode/AGENTS.md",
     ".grok/rules/delegation.md": "grok/rules/delegation.md",
 }
+PRE_DETECTIVE = json.loads((ROOT / "tests/fixtures/pre-detective-install.json").read_text())
 LEGACY_POLICY = (ROOT / "tests/fixtures/shared-delegation.md").read_bytes()
 
 
@@ -107,6 +108,114 @@ class UninstallTests(unittest.TestCase):
         os.close(master)
         return process.returncode, output.decode()
 
+    def pre_detective_home(self, name="pre-detective"):
+        home = self.fresh_home(name)
+        for relative, contents in PRE_DETECTIVE.items():
+            path = home / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(contents)
+        return home
+
+    def snapshot(self, home):
+        return {str(path.relative_to(home)): path.read_bytes()
+                for path in home.rglob("*") if path.is_file()}
+
+    def test_rename_upgrade_requires_update_and_dry_run_preserves_old_install(self):
+        home = self.pre_detective_home()
+        before = self.snapshot(home)
+        result = self.run_in_home(home)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("--update", result.stderr)
+        self.assertEqual(self.snapshot(home), before)
+        preview = self.run_in_home(home, "--update", "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertIn("Would retire:", preview.stdout)
+        self.assertEqual(self.snapshot(home), before)
+
+    def test_rename_upgrade_replaces_all_active_names_and_preserves_exact_backups(self):
+        home = self.pre_detective_home()
+        result = self.run_in_home(home, "--update")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        current = self.snapshot(self.home)
+        upgraded = self.snapshot(home)
+        active = {name: contents for name, contents in upgraded.items() if ".bak-" not in name}
+        self.assertEqual(active, current)
+        changed = {name: contents for name, contents in PRE_DETECTIVE.items()
+                   if name not in current or contents.encode() != current[name]}
+        backups = {name.split(".bak-", 1)[0]: contents for name, contents in upgraded.items()
+                   if ".bak-" in name}
+        self.assertEqual(backups, {name: contents.encode() for name, contents in changed.items()})
+        self.assertEqual(self.run_in_home(home, "--update").returncode, 0)
+        self.assertEqual(self.snapshot(home), upgraded)
+        self.assertEqual(self.run_in_home(home, "--uninstall").returncode, 0)
+        self.assertEqual(self.snapshot(home), {name: contents for name, contents in upgraded.items()
+                                               if ".bak-" in name})
+
+    def test_old_customized_or_nonregular_agent_blocks_entire_upgrade(self):
+        for kind in ("customized", "symlink", "directory"):
+            with self.subTest(kind=kind):
+                home = self.pre_detective_home(kind)
+                path = home / ".grok/agents/worker.md"
+                path.unlink()
+                if kind == "customized":
+                    path.write_text("Personal agent\n")
+                elif kind == "symlink":
+                    path.symlink_to(home / ".claude/agents/worker.md")
+                else:
+                    path.mkdir()
+                before = self.snapshot(home)
+                result = self.run_in_home(home, "--update")
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(str(path), result.stderr)
+                self.assertEqual(self.snapshot(home), before)
+                self.assertEqual(path.is_symlink(), kind == "symlink")
+                self.assertEqual(path.is_dir(), kind == "directory")
+
+    def test_old_customized_and_symlink_agents_survive_uninstall(self):
+        home = self.pre_detective_home()
+        custom = home / ".codex/agents/worker.toml"
+        custom.write_text("Personal old agent\n")
+        link = home / ".claude/agents/oracle.md"
+        external = home.parent / "personal-oracle.md"
+        external.write_bytes(link.read_bytes())
+        link.unlink()
+        link.symlink_to(external)
+        result = self.run_in_home(home, "--uninstall")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(custom.read_text(), "Personal old agent\n")
+        self.assertTrue(link.is_symlink())
+        self.assertTrue(external.is_file())
+        self.assertFalse((home / ".codex/agents/fast.toml").exists())
+
+    def test_customized_replacement_blocks_rename_upgrade(self):
+        home = self.pre_detective_home()
+        replacement = home / ".codex/agents/fixer.toml"
+        replacement.write_text("Personal replacement\n")
+        before = self.snapshot(home)
+        result = self.run_in_home(home, "--update")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(str(replacement), result.stderr)
+        self.assertEqual(self.snapshot(home), before)
+
+    def test_rename_migration_and_uninstall_respect_tool_scope(self):
+        home = self.pre_detective_home()
+        before = self.snapshot(home)
+        result = self.run_in_home(home, "--tool", "codex", "--update")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((home / ".codex/agents/tracker.toml").is_file())
+        self.assertFalse((home / ".codex/agents/explorer.toml").exists())
+        self.assertEqual({name: data for name, data in self.snapshot(home).items()
+                          if not name.startswith(".codex/")},
+                         {name: data for name, data in before.items() if not name.startswith(".codex/")})
+        preview = self.run_in_home(home, "--tool", "claude", "--uninstall", "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertTrue((home / ".claude/agents/oracle.md").is_file())
+        result = self.run_in_home(home, "--tool", "claude", "--uninstall")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((home / ".claude/agents/oracle.md").exists())
+        self.assertTrue((home / ".grok/agents/worker.md").is_file())
+        self.assertTrue((home / ".codex/agents/fixer.toml").is_file())
+
     def test_dry_run_preserves_every_file_and_real_uninstall_is_idempotent(self):
         preferences = self.home / ".claude/CLAUDE.md"
         preferences.write_text("My personal instructions\n")
@@ -130,9 +239,9 @@ class UninstallTests(unittest.TestCase):
 
     def test_grok_native_agents_and_policy_are_installed_exactly(self):
         expected = {
-            ".grok/agents/fast.md": "grok/fast.md",
-            ".grok/agents/worker.md": "grok/worker.md",
-            ".grok/agents/reviewer.md": "grok/reviewer.md",
+            ".grok/agents/runner.md": "grok/runner.md",
+            ".grok/agents/fixer.md": "grok/fixer.md",
+            ".grok/agents/inspector.md": "grok/inspector.md",
             ".grok/rules/delegation.md": "grok/rules/delegation.md",
         }
         installed = {
@@ -234,7 +343,7 @@ class UninstallTests(unittest.TestCase):
                 "fast": "Handles focused exploration and straightforward independent tasks.",
                 "reviewer": "Reviews complex logic, bugs, and security risks.",
             }[name]
-            lines = agent.read_text().replace(current, previous).splitlines()
+            lines = PRE_DETECTIVE[str(agent.relative_to(self.home))].replace(current, previous).splitlines()
             earlier[agent] = ("\n".join(
                 "description: " + old_description if line.startswith("description: ") else line
                 for line in lines
@@ -244,14 +353,14 @@ class UninstallTests(unittest.TestCase):
         upgraded = self.run_command("--update")
         self.assertEqual(upgraded.returncode, 0, upgraded.stderr)
         for agent, contents in earlier.items():
-            self.assertEqual(agent.read_bytes(), (ROOT / "opencode" / agent.name).read_bytes())
+            self.assertFalse(agent.exists())
             backups = list(agent.parent.glob(agent.name + ".bak-*"))
             self.assertEqual(len(backups), 1)
             self.assertEqual(backups[0].read_bytes(), contents)
 
     def test_update_replaces_installed_glm_53_reviewer(self):
         agent = self.home / ".config/opencode/agents/reviewer.md"
-        previous = agent.read_bytes().replace(
+        previous = PRE_DETECTIVE[str(agent.relative_to(self.home))].encode().replace(
             b"opencode-go/glm-5.3-flash#max",
             b"opencode-go/glm-5.3#max",
         )
@@ -259,7 +368,7 @@ class UninstallTests(unittest.TestCase):
 
         upgraded = self.run_command("--update")
         self.assertEqual(upgraded.returncode, 0, upgraded.stderr)
-        self.assertEqual(agent.read_bytes(), (ROOT / "opencode" / "reviewer.md").read_bytes())
+        self.assertFalse(agent.exists())
         backups = list(agent.parent.glob(agent.name + ".bak-*"))
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].read_bytes(), previous)
@@ -333,7 +442,7 @@ class UninstallTests(unittest.TestCase):
         config.write_text('model = "dummy-personal-model"\n')
         credentials = self.home / ".grok/credentials.json"
         credentials.write_text('{"apiKey": "dummy-test-key"}\n')
-        agent = self.home / ".grok/agents/worker.md"
+        agent = self.home / ".grok/agents/fixer.md"
         agent.write_text("My custom Grok agent\n")
         before = {path: path.read_bytes() for path in (config, credentials, agent)}
 
@@ -346,23 +455,23 @@ class UninstallTests(unittest.TestCase):
     def test_customized_agent_and_instructions_are_preserved(self):
         policy = self.home / ".config/opencode/AGENTS.md"
         policy.write_text(policy.read_text() + "\nMy additional rule\n")
-        agent = self.home / ".claude/agents/worker.md"
+        agent = self.home / ".claude/agents/fixer.md"
         agent.write_text("My custom agent\n")
         before = {path: path.read_bytes() for path in (policy, agent)}
 
         removed = self.run_command("--uninstall")
         self.assertEqual(removed.returncode, 1)
         self.assertEqual({path: path.read_bytes() for path in before}, before)
-        self.assertFalse((self.home / ".codex/agents/fast.toml").exists())
+        self.assertFalse((self.home / ".codex/agents/runner.toml").exists())
         self.assertIn("Preserved", removed.stdout)
 
     def test_symlinks_and_directories_are_preserved(self):
-        target = self.home / ".claude/agents/fast.md"
+        target = self.home / ".claude/agents/runner.md"
         external = Path(self.directory.name) / "external.md"
         external.write_bytes(target.read_bytes())
         target.unlink()
         target.symlink_to(external)
-        directory = self.home / ".claude/agents/reviewer.md"
+        directory = self.home / ".claude/agents/inspector.md"
         directory.unlink()
         directory.mkdir()
 
@@ -420,9 +529,9 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(
             self.installed_relative_paths(home),
             {
-                ".grok/agents/fast.md",
-                ".grok/agents/worker.md",
-                ".grok/agents/reviewer.md",
+                ".grok/agents/runner.md",
+                ".grok/agents/fixer.md",
+                ".grok/agents/inspector.md",
                 ".grok/rules/delegation.md",
             },
         )
@@ -432,14 +541,14 @@ class UninstallTests(unittest.TestCase):
         result = self.run_command("--tool", "claude", "--uninstall")
         self.assertEqual(result.returncode, 0, result.stderr)
         removed = {
-            ".claude/agents/fast.md",
-            ".claude/agents/worker.md",
-            ".claude/agents/reviewer.md",
-            ".claude/agents/oracle.md",
+            ".claude/agents/runner.md",
+            ".claude/agents/fixer.md",
+            ".claude/agents/inspector.md",
+            ".claude/agents/consultant.md",
             ".claude/rules/delegation.md",
         }
         self.assertEqual(self.installed_relative_paths(self.home), before - removed)
-        self.assertTrue((self.home / ".codex/agents/fast.toml").is_file())
+        self.assertTrue((self.home / ".codex/agents/runner.toml").is_file())
 
     def test_tool_update_leaves_other_legacy_policies(self):
         self.install_legacy_policies()
@@ -456,14 +565,14 @@ class UninstallTests(unittest.TestCase):
 
     def test_unselected_customization_does_not_block_another_tool(self):
         home = self.fresh_home("custom-claude")
-        agent = home / ".claude/agents/worker.md"
+        agent = home / ".claude/agents/fixer.md"
         agent.parent.mkdir(parents=True)
         agent.write_text("My custom agent\n")
 
         result = self.run_in_home(home, "--tool", "grok")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(agent.read_text(), "My custom agent\n")
-        self.assertTrue((home / ".grok/agents/worker.md").is_file())
+        self.assertTrue((home / ".grok/agents/fixer.md").is_file())
 
     def test_unknown_tool_is_rejected_without_writing(self):
         home = self.fresh_home("rejected-tool")
@@ -483,9 +592,9 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(
             self.installed_relative_paths(home),
             {
-                ".grok/agents/fast.md",
-                ".grok/agents/worker.md",
-                ".grok/agents/reviewer.md",
+                ".grok/agents/runner.md",
+                ".grok/agents/fixer.md",
+                ".grok/agents/inspector.md",
                 ".grok/rules/delegation.md",
             },
         )
@@ -518,9 +627,9 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(
             self.installed_relative_paths(home),
             {
-                ".config/opencode/agents/fast.md",
-                ".config/opencode/agents/worker.md",
-                ".config/opencode/agents/reviewer.md",
+                ".config/opencode/agents/runner.md",
+                ".config/opencode/agents/fixer.md",
+                ".config/opencode/agents/inspector.md",
                 ".config/opencode/opencode.jsonc",
                 ".config/opencode/AGENTS.md",
             },
@@ -533,9 +642,9 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(returncode, 0, output)
         self.assertIn("Uninstall scope", output)
         self.assertIn("Selected: claude", output)
-        self.assertFalse((self.home / ".claude/agents/fast.md").exists())
-        self.assertTrue((self.home / ".grok/agents/fast.md").is_file())
-        self.assertTrue((self.home / ".codex/agents/fast.toml").is_file())
+        self.assertFalse((self.home / ".claude/agents/runner.md").exists())
+        self.assertTrue((self.home / ".grok/agents/runner.md").is_file())
+        self.assertTrue((self.home / ".codex/agents/runner.toml").is_file())
 
     def test_interactive_selects_multiple_tools(self):
         home = self.fresh_home("interactive-two")
@@ -548,15 +657,15 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(
             self.installed_relative_paths(home),
             {
-                ".codex/agents/fast.toml",
-                ".codex/agents/worker.toml",
-                ".codex/agents/reviewer.toml",
-                ".codex/agents/explorer.toml",
+                ".codex/agents/runner.toml",
+                ".codex/agents/fixer.toml",
+                ".codex/agents/inspector.toml",
+                ".codex/agents/tracker.toml",
                 ".codex/agents/default.toml",
                 ".codex/AGENTS.md",
-                ".grok/agents/fast.md",
-                ".grok/agents/worker.md",
-                ".grok/agents/reviewer.md",
+                ".grok/agents/runner.md",
+                ".grok/agents/fixer.md",
+                ".grok/agents/inspector.md",
                 ".grok/rules/delegation.md",
             },
         )
@@ -587,8 +696,8 @@ class UninstallTests(unittest.TestCase):
         self.assertEqual(returncode, 0, output)
         self.assertIn("Select at least one tool", output)
         self.assertIn("Selected: codex", output)
-        self.assertTrue((home / ".codex/agents/fast.toml").is_file())
-        self.assertFalse((home / ".grok/agents/fast.md").exists())
+        self.assertTrue((home / ".codex/agents/runner.toml").is_file())
+        self.assertFalse((home / ".grok/agents/runner.md").exists())
 
     def test_repeated_tool_flags_install_each_named_tool(self):
         home = self.fresh_home("two-tools")

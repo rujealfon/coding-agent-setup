@@ -1,4 +1,4 @@
-name = "explorer"
+name = "tracker"
 description = "Use to trace behavior, dependencies, and likely causes across files without edits. Return evidence and implementation entry points."
 model = "gpt-6-luna"
 sandbox_mode = "read-only"

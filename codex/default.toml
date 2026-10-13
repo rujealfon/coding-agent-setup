@@ -1,5 +1,5 @@
 name = "default"
-description = "Use for bounded mixed investigation and implementation with no matching specialist. Prefer worker for a defined change and explorer for read-only tracing."
+description = "Use for bounded mixed investigation and implementation with no matching specialist. Prefer fixer for a defined change and tracker for read-only tracing."
 model = "gpt-6.1-sol"
 developer_instructions = """
 Complete the assigned general task within its stated scope.

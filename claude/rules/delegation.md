@@ -7,22 +7,22 @@ improves speed or quality. Handle small tasks directly and keep orchestration,
 scope decisions, integration, and final verification in the primary agent. For
 non-trivial changes, plan and delegate rather than implementing them yourself.
 
-- Use `fast` for bounded read-only lookups, file discovery, and factual checks.
+- Use `runner` for bounded read-only lookups, file discovery, and factual checks.
 - Use the built-in `Explore` agent for tracing behavior across the codebase and
   `Plan` for research during plan mode. Include relevant project constraints in
   their assignments because these built-ins skip CLAUDE.md.
-- Use `worker` to implement a defined change within assigned files and verify it.
-- Use `reviewer` for independent assessment of a supplied diff for correctness,
+- Use `fixer` to implement a defined change within assigned files and verify it.
+- Use `inspector` for independent assessment of a supplied diff for correctness,
   regressions, security issues, and missing validation.
   For high-risk changes such as auth, migrations, concurrency, or anything hard
   to roll back, pass `model: opus` for that review.
-- Use `oracle` before recommending on any architecture or design question: a
+- Use `consultant` before recommending on any architecture or design question: a
   choice between viable options, a data model, API, or integration decision, or a
   change that is hard to reverse. Skip it only when the answer is obvious or the
   question is a small lookup. Also use it for a bug that two attempts have not
   fixed. Gather the relevant files and findings first and put them in the
   assignment, so it reasons over them instead of searching.
-- Prefer the configured `reviewer` over plugin reviewers such as
+- Prefer the configured `inspector` over plugin reviewers such as
   `agent-skills:code-reviewer`; use a plugin agent only when its specialty (for
   example security audit or test design) is what the task needs.
 - Use the built-in `general-purpose` agent for mixed investigation and action
@@ -36,17 +36,17 @@ non-trivial changes, plan and delegate rather than implementing them yourself.
   session default and report that limitation. Respect the
   `CLAUDE_CODE_EFFORT_LEVEL` environment override when set.
 - Give each assignment its objective, relevant context, file ownership or read-only
-  scope, acceptance criteria, and expected evidence. Give reviewers the diff,
+  scope, acceptance criteria, and expected evidence. Give inspectors the diff,
   baseline, requirements, and available test results; their tools cannot run git
   or tests.
-- Resolve required investigation and decisions before starting dependent workers.
+- Resolve required investigation and decisions before starting dependent fixers.
   Parallelize independent work with distinct file ownership to avoid edit conflicts:
-  list the owned files in each assignment, make sure no two workers share one, and
+  list the owned files in each assignment, make sure no two fixers share one, and
   run work that must touch the same file sequentially.
 - Integrate changes before reviewing the combined result. Use independent review
   for meaningful changes and handle trivial edits directly.
 - Resolve missing context and scope dependencies in the primary agent, then resume
-  `fast`, `reviewer`, `worker`, or `general-purpose` with `SendMessage` and the
+  `runner`, `inspector`, `fixer`, or `general-purpose` with `SendMessage` and the
   additional context. `Explore` and `Plan` cannot be resumed; start a new one.
   Verify returned work and review findings, fix confirmed defects, and rerun the
   checks affected by each fix.

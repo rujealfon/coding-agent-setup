@@ -195,26 +195,42 @@ def main():
     home = args.target_home.expanduser().resolve()
     previous = json.loads((source / "previous-install-hashes.json").read_text())
     files = [
-        ("codex/fast.toml", ".codex/agents/fast.toml"),
-        ("codex/worker.toml", ".codex/agents/worker.toml"),
-        ("codex/reviewer.toml", ".codex/agents/reviewer.toml"),
-        ("codex/explorer.toml", ".codex/agents/explorer.toml"),
+        ("codex/runner.toml", ".codex/agents/runner.toml"),
+        ("codex/fixer.toml", ".codex/agents/fixer.toml"),
+        ("codex/inspector.toml", ".codex/agents/inspector.toml"),
+        ("codex/tracker.toml", ".codex/agents/tracker.toml"),
         ("codex/default.toml", ".codex/agents/default.toml"),
         ("codex/AGENTS.md", ".codex/AGENTS.md"),
-        ("claude/fast.md", ".claude/agents/fast.md"),
-        ("claude/worker.md", ".claude/agents/worker.md"),
-        ("claude/reviewer.md", ".claude/agents/reviewer.md"),
-        ("claude/oracle.md", ".claude/agents/oracle.md"),
+        ("claude/runner.md", ".claude/agents/runner.md"),
+        ("claude/fixer.md", ".claude/agents/fixer.md"),
+        ("claude/inspector.md", ".claude/agents/inspector.md"),
+        ("claude/consultant.md", ".claude/agents/consultant.md"),
         ("claude/rules/delegation.md", ".claude/rules/delegation.md"),
-        ("opencode/fast.md", ".config/opencode/agents/fast.md"),
-        ("opencode/worker.md", ".config/opencode/agents/worker.md"),
-        ("opencode/reviewer.md", ".config/opencode/agents/reviewer.md"),
+        ("opencode/runner.md", ".config/opencode/agents/runner.md"),
+        ("opencode/fixer.md", ".config/opencode/agents/fixer.md"),
+        ("opencode/inspector.md", ".config/opencode/agents/inspector.md"),
         ("opencode/opencode.jsonc", ".config/opencode/opencode.jsonc"),
         ("opencode/AGENTS.md", ".config/opencode/AGENTS.md"),
-        ("grok/fast.md", ".grok/agents/fast.md"),
-        ("grok/worker.md", ".grok/agents/worker.md"),
-        ("grok/reviewer.md", ".grok/agents/reviewer.md"),
+        ("grok/runner.md", ".grok/agents/runner.md"),
+        ("grok/fixer.md", ".grok/agents/fixer.md"),
+        ("grok/inspector.md", ".grok/agents/inspector.md"),
         ("grok/rules/delegation.md", ".grok/rules/delegation.md"),
+    ]
+    legacy_files = [
+        ("codex", ".codex/agents/fast.toml"),
+        ("codex", ".codex/agents/worker.toml"),
+        ("codex", ".codex/agents/reviewer.toml"),
+        ("codex", ".codex/agents/explorer.toml"),
+        ("claude", ".claude/agents/fast.md"),
+        ("claude", ".claude/agents/worker.md"),
+        ("claude", ".claude/agents/reviewer.md"),
+        ("claude", ".claude/agents/oracle.md"),
+        ("opencode", ".config/opencode/agents/fast.md"),
+        ("opencode", ".config/opencode/agents/worker.md"),
+        ("opencode", ".config/opencode/agents/reviewer.md"),
+        ("grok", ".grok/agents/fast.md"),
+        ("grok", ".grok/agents/worker.md"),
+        ("grok", ".grok/agents/reviewer.md"),
     ]
     prompted = not args.tool and sys.stdin.isatty() and sys.stdout.isatty()
     selected = resolve_tools(parser, args)
@@ -224,7 +240,10 @@ def main():
         label = "all" if selected_names == set(TOOLS) else ", ".join(selected)
         print(f"Selected: {label}")
 
+    legacy_files = [target for tool, target in legacy_files if tool in selected_names]
+
     if args.uninstall:
+        files += [(None, target) for target in legacy_files]
         preserved = False
         for relative_source, relative_target in files:
             target = home / relative_target
@@ -236,7 +255,7 @@ def main():
                 print(f"Not installed: {target}")
                 continue
             installed = target.read_bytes()
-            current = (source / relative_source).read_bytes()
+            current = (source / relative_source).read_bytes() if relative_source else None
             digest = hashlib.sha256(installed).hexdigest()
             # Empty personal files can predate this setup; leave them in place.
             recognized = installed and (installed == current or digest in previous.get(relative_target, []))
@@ -273,6 +292,21 @@ def main():
                 parser.exit(1, f"Recognized earlier setup at {target}. Rerun with --update to back up and replace it.\n")
         changes.append((target, contents, old))
 
+    # Retired names are checked before any writes, just like their replacements.
+    retired = []
+    for relative_target in legacy_files:
+        target = home / relative_target
+        if target.is_symlink() or (target.exists() and not target.is_file()):
+            parser.exit(1, f"Refusing to replace non-regular file: {target}\n")
+        if not target.exists():
+            continue
+        old = target.read_bytes()
+        if hashlib.sha256(old).hexdigest() not in previous.get(relative_target, []):
+            parser.exit(1, f"Unrecognized existing instructions or agent; preserved unchanged: {target}\n")
+        if not args.update:
+            parser.exit(1, f"Recognized earlier setup at {target}. Rerun with --update to back up and replace it.\n")
+        retired.append((target, old))
+
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     for target, contents, old in changes:
         action = "Already installed" if old == contents else "Update" if old is not None else "Install"
@@ -301,6 +335,17 @@ def main():
                 if temporary_path is not None and temporary_path.exists():
                     temporary_path.unlink()
         print(f"{action}: {target}")
+
+    for target, old in retired:
+        if args.dry_run:
+            print(f"Would retire: {target}")
+            continue
+        backup = target.with_name(target.name + ".bak-" + stamp)
+        with backup.open("xb") as output:
+            output.write(old)
+        target.unlink()
+        print(f"Backup: {backup}")
+        print(f"Retired: {target}")
 
 
 if __name__ == "__main__":

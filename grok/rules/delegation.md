@@ -6,9 +6,9 @@ When acting as the primary agent, use subagents when independent work can run
 in parallel and delegation would materially improve speed or quality. Handle
 small tasks directly.
 
-- Use `fast` for simple lookups, targeted searches, and mechanical checks.
-- Use `worker` to implement a defined change within assigned files and verify it.
-- Use `reviewer` for independent assessment of correctness, regressions, security
+- Use `runner` for simple lookups, targeted searches, and mechanical checks.
+- Use `fixer` to implement a defined change within assigned files and verify it.
+- Use `inspector` for independent assessment of correctness, regressions, security
   issues, and missing validation. Supply its diff, baseline, and test results;
   its read-only capability mode excludes edits and shell execution.
 - For deeper investigation or mixed work without a matching specialist, handle
