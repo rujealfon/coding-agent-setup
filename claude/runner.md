@@ -1,5 +1,5 @@
 ---
-name: fast
+name: runner
 description: Use for bounded read-only lookups, file discovery, and factual checks. Use Explore for tracing behavior across files.
 model: claude-haiku-5-5
 # Do not add Bash here: on macOS it removes Glob and Grep.

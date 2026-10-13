@@ -1,5 +1,5 @@
 ---
-name: reviewer
+name: inspector
 description: Use after a meaningful change or before merging for independent read-only review of a supplied diff, correctness, regressions, security, and missing validation.
 model: claude-sonnet-5-5
 # Do not add Bash here: on macOS it removes Glob and Grep.
