@@ -41,11 +41,12 @@ scope decisions, integration, and final verification in the primary conversation
 
 | Agent | Assignment | Tool access |
 | --- | --- | --- |
-| `fast` | Bounded factual lookup or file discovery with references | Read, Glob, Grep, LSP, WebFetch, WebSearch |
+| `fast` | Bounded factual lookup or file discovery with references | Read, Glob, Grep, WebFetch, WebSearch |
 | `Explore` built-in | Trace behavior and dependencies across the codebase | Built-in read-only tools |
 | `Plan` built-in | Gather research during plan mode | Built-in read-only tools |
 | `worker` | Implement an agreed change within owned files and verify it | Inherited tools, including shell, editing, skills, and MCP; Agent disabled |
-| `reviewer` | Review a supplied diff for concrete defects and explain their impact | Read, Glob, Grep, LSP, WebFetch, WebSearch |
+| `reviewer` | Review a supplied diff for concrete defects and explain their impact | Read, Glob, Grep, WebFetch, WebSearch |
+| `oracle` | Advise on architecture, design trade-offs, and stubborn bugs; use sparingly | Read, Glob, Grep, WebFetch, WebSearch |
 | `general-purpose` built-in | Mixed investigation and action without a matching specialist | Built-in available tools |
 
 Use only the stages the task needs. For a change that needs investigation, gather
@@ -58,11 +59,10 @@ work that depends on their output waits for it.
 
 Explore and Plan skip CLAUDE.md, so include relevant project constraints in their
 assignments. Workers retain inherited tools for project-specific workflows but
-cannot spawn further subagents through Agent. Fast and reviewer use explicit
+cannot spawn further subagents through Agent. Fast, reviewer, and oracle use explicit
 inspection tool lists, which also exclude shell, edits, and MCP tools. Send work
 requiring those tools to the primary agent or a suitably scoped worker.
-This setup keeps all three custom models fixed and leaves effort to the primary
-agent. Add another custom role only for a recurring task with distinct tools or
+This setup keeps all four custom models fixed and sets a default effort for each. Add another custom role only for a recurring task with distinct tools or
 instructions that these roles and the built-ins do not cover.
 [Claude routing and tools](https://code.claude.com/docs/en/sub-agents)
 
