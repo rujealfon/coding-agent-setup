@@ -9,12 +9,12 @@ The delegation rules apply across projects on the machine where you install them
 
 ## Models and roles
 
-| Tool | `fast` | `worker` | `reviewer` | `explorer` | `default` | `explore` | `general` |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
-| Claude Code | Haiku 5.5 | Sonnet 5.5 | Sonnet 5.5 | N/A | N/A | N/A | N/A |
-| OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, medium | `opencode-go/deepseek-v4.1-flash`, max |
-| Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | N/A | N/A | N/A | N/A |
+| Tool | `fast` | `worker` | `reviewer` | `oracle` | `explorer` | `default` | `explore` | `general` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6-astra` | N/A | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
+| Claude Code | Haiku 5.5 | Sonnet 5.5 | Sonnet 5.5 | Opus 5.5 | N/A | N/A | N/A | N/A |
+| OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, medium | `opencode-go/deepseek-v4.1-flash`, max |
+| Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | N/A | N/A | N/A | N/A | N/A |
 
 - `fast` performs simple lookups, targeted searches, and mechanical checks.
 - `worker` implements defined changes within clear file ownership and verifies the affected behavior.
