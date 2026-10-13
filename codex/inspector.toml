@@ -1,6 +1,6 @@
 name = "inspector"
 description = "Use after a meaningful change or before merging for independent review of a specified diff, correctness, regressions, security, and missing validation."
-model = "gpt-6-astra"
+model = "gpt-6.1-sol"
 sandbox_mode = "read-only"
 developer_instructions = """
 Review the specified diff against its requirements and baseline. Ask the primary

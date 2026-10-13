@@ -198,6 +198,7 @@ def main():
         ("codex/runner.toml", ".codex/agents/runner.toml"),
         ("codex/fixer.toml", ".codex/agents/fixer.toml"),
         ("codex/inspector.toml", ".codex/agents/inspector.toml"),
+        ("codex/consultant.toml", ".codex/agents/consultant.toml"),
         ("codex/tracker.toml", ".codex/agents/tracker.toml"),
         ("codex/default.toml", ".codex/agents/default.toml"),
         ("codex/AGENTS.md", ".codex/AGENTS.md"),
@@ -209,11 +210,13 @@ def main():
         ("opencode/runner.md", ".config/opencode/agents/runner.md"),
         ("opencode/fixer.md", ".config/opencode/agents/fixer.md"),
         ("opencode/inspector.md", ".config/opencode/agents/inspector.md"),
+        ("opencode/consultant.md", ".config/opencode/agents/consultant.md"),
         ("opencode/opencode.jsonc", ".config/opencode/opencode.jsonc"),
         ("opencode/AGENTS.md", ".config/opencode/AGENTS.md"),
         ("grok/runner.md", ".grok/agents/runner.md"),
         ("grok/fixer.md", ".grok/agents/fixer.md"),
         ("grok/inspector.md", ".grok/agents/inspector.md"),
+        ("grok/consultant.md", ".grok/agents/consultant.md"),
         ("grok/rules/delegation.md", ".grok/rules/delegation.md"),
     ]
     legacy_files = [

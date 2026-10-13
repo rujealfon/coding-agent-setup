@@ -2,12 +2,12 @@
   "$schema": "https://opencode.ai/config.json",
   "agents": {
     "explore": {
-      "model": "opencode-go/muse-spark-1.3-contributor#medium",
-      "description": "Investigates codebase behavior across files, traces execution paths, and returns evidence without editing code."
+      "model": "opencode-go/muse-spark-1.3-contributor#high",
+      "description": "Use for tracing behavior, dependencies, and likely causes across files without edits. Prefer runner for bounded factual lookups."
     },
     "general": {
       "model": "opencode-go/deepseek-v4.1-flash#max",
-      "description": "Handles general tasks that do not fit a specialist role, including mixed investigation and implementation."
+      "description": "Use for bounded mixed investigation and implementation when no specialist fits. Prefer fixer for defined changes and explore for read-only tracing."
     }
   }
 }

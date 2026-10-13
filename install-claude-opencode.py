@@ -1,4 +1,4 @@
-"""Compatibility entry point for the combined three-tool installer."""
+"""Compatibility entry point for the combined installer."""
 
 from pathlib import Path
 import runpy

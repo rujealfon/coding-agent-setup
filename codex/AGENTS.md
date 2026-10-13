@@ -12,6 +12,11 @@ scope decisions, integration, and final verification in the primary agent.
 - Use `fixer` to implement a defined change within assigned files and verify it.
 - Use `inspector` for independent assessment of a specified diff for correctness,
   regressions, security issues, and missing validation.
+- Use `consultant` before dependent implementation when architecture or design
+  trade-offs remain unresolved, or when two evidence-based attempts have not fixed
+  a difficult bug. Provide relevant context, constraints, options, and previous
+  attempts. Use sparingly for decisions requiring deeper reasoning; the primary
+  agent resolves the recommendation before assigning dependent work.
 - Use `default` for bounded mixed investigation and implementation when no
   specialist fits.
 - Use each agent's configured model. Choose a supported reasoning effort for its
