@@ -4,7 +4,8 @@ Apply this delegation policy in Claude Code sessions.
 
 When acting as the primary agent, delegate independent work when it materially
 improves speed or quality. Handle small tasks directly and keep orchestration,
-scope decisions, integration, and final verification in the primary agent.
+scope decisions, integration, and final verification in the primary agent. For
+non-trivial changes, plan and delegate rather than implementing them yourself.
 
 - Use `fast` for bounded read-only lookups, file discovery, and factual checks.
 - Use the built-in `Explore` agent for tracing behavior across the codebase and
@@ -13,6 +14,17 @@ scope decisions, integration, and final verification in the primary agent.
 - Use `worker` to implement a defined change within assigned files and verify it.
 - Use `reviewer` for independent assessment of a supplied diff for correctness,
   regressions, security issues, and missing validation.
+  For high-risk changes such as auth, migrations, concurrency, or anything hard
+  to roll back, pass `model: opus` for that review.
+- Use `oracle` before recommending on any architecture or design question: a
+  choice between viable options, a data model, API, or integration decision, or a
+  change that is hard to reverse. Skip it only when the answer is obvious or the
+  question is a small lookup. Also use it for a bug that two attempts have not
+  fixed. Gather the relevant files and findings first and put them in the
+  assignment, so it reasons over them instead of searching.
+- Prefer the configured `reviewer` over plugin reviewers such as
+  `agent-skills:code-reviewer`; use a plugin agent only when its specialty (for
+  example security audit or test design) is what the task needs.
 - Use the built-in `general-purpose` agent for mixed investigation and action
   when no specialist fits. It can spawn agents, so tell it in the assignment not
   to delegate further.

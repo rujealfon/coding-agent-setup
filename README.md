@@ -9,16 +9,17 @@ The delegation rules apply across projects on the machine where you install them
 
 ## Models and roles
 
-| Tool | `fast` | `worker` | `reviewer` | `explorer` | `default` | `explore` | `general` |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
-| Claude Code | Haiku 5.5 | Sonnet 5.5 | Opus 5.5 | N/A | N/A | N/A | N/A |
-| OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, medium | `opencode-go/deepseek-v4.1-flash`, max |
-| Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | N/A | N/A | N/A | N/A |
+| Tool | `fast` | `worker` | `reviewer` | `oracle` | `explorer` | `default` | `explore` | `general` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6-astra` | N/A | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
+| Claude Code | Haiku 5.5 | Sonnet 5.5 | Sonnet 5.5 | Opus 5.5 | N/A | N/A | N/A | N/A |
+| OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, medium | `opencode-go/deepseek-v4.1-flash`, max |
+| Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | N/A | N/A | N/A | N/A | N/A |
 
 - `fast` performs simple lookups, targeted searches, and mechanical checks.
 - `worker` implements defined changes within clear file ownership and verifies the affected behavior.
 - `reviewer` independently assesses correctness, regressions, security issues, and missing validation with read-only tools.
+- `oracle` (Claude Code only) advises on architecture, design trade-offs, and stubborn bugs with read-only tools. It uses Opus at high effort and is meant to be called sparingly; the primary agent stays on your main model.
 - `explore` is OpenCode's built-in exploration subagent.
 - `general` is OpenCode's built-in general-purpose subagent.
 
@@ -40,11 +41,12 @@ scope decisions, integration, and final verification in the primary conversation
 
 | Agent | Assignment | Tool access |
 | --- | --- | --- |
-| `fast` | Bounded factual lookup or file discovery with references | Read, Glob, Grep, LSP, WebFetch, WebSearch |
+| `fast` | Bounded factual lookup or file discovery with references | Read, Glob, Grep, WebFetch, WebSearch |
 | `Explore` built-in | Trace behavior and dependencies across the codebase | Built-in read-only tools |
 | `Plan` built-in | Gather research during plan mode | Built-in read-only tools |
 | `worker` | Implement an agreed change within owned files and verify it | Inherited tools, including shell, editing, skills, and MCP; Agent disabled |
-| `reviewer` | Review a supplied diff for concrete defects and explain their impact | Read, Glob, Grep, LSP, WebFetch, WebSearch |
+| `reviewer` | Review a supplied diff for concrete defects and explain their impact | Read, Glob, Grep, WebFetch, WebSearch |
+| `oracle` | Advise on architecture, design trade-offs, and stubborn bugs; use sparingly | Read, Glob, Grep, WebFetch, WebSearch |
 | `general-purpose` built-in | Mixed investigation and action without a matching specialist | Built-in available tools |
 
 Use only the stages the task needs. For a change that needs investigation, gather
@@ -57,11 +59,10 @@ work that depends on their output waits for it.
 
 Explore and Plan skip CLAUDE.md, so include relevant project constraints in their
 assignments. Workers retain inherited tools for project-specific workflows but
-cannot spawn further subagents through Agent. Fast and reviewer use explicit
+cannot spawn further subagents through Agent. Fast, reviewer, and oracle use explicit
 inspection tool lists, which also exclude shell, edits, and MCP tools. Send work
 requiring those tools to the primary agent or a suitably scoped worker.
-This setup keeps all three custom models fixed and leaves effort to the primary
-agent. Add another custom role only for a recurring task with distinct tools or
+This setup keeps all four custom models fixed and sets a default effort for each. Add another custom role only for a recurring task with distinct tools or
 instructions that these roles and the built-ins do not cover.
 [Claude routing and tools](https://code.claude.com/docs/en/sub-agents)
 
@@ -125,13 +126,13 @@ when no effort is selected at spawn time, remove
 `default_subagent_reasoning_effort` from its `[agents]` table. Explicit spawn
 effort takes precedence over that global default either way.
 
-Claude agent files omit `effort`. On Claude Code v2.1.292 or later, its
-delegation policy asks the primary agent to pass a supported effort level through
-the Agent tool for each non-fork subagent invocation, using the same task guidance
-as Codex. On older versions, agents fall back to the session effort and the primary
-agent reports the limitation. Omitting `effort` alone does not select a level
-based on the task. `CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation
-choices. Unset that environment variable to let the primary agent choose effort.
+Claude agent files set a default `effort` in their frontmatter: low for `fast`,
+medium for `worker`, and high for `reviewer` and `oracle`. On Claude Code v2.1.292
+or later, the delegation policy also asks the primary agent to pass a supported
+effort level through the Agent tool for each non-fork subagent invocation, using
+the same task guidance as Codex. On older versions, the primary agent reports the
+limitation. `CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation choices.
+Unset that environment variable to let the primary agent choose effort.
 The installer leaves Claude settings and shell environment variables unchanged.
 Restart Claude Code after updating to load the new agent definitions.
 [Claude subagent effort](https://code.claude.com/docs/en/sub-agents#choose-an-effort-level)

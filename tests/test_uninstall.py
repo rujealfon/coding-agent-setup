@@ -27,7 +27,7 @@ class UninstallTests(unittest.TestCase):
         installed = self.run_command()
         self.assertEqual(installed.returncode, 0, installed.stderr)
         self.installed_files = [path for path in self.home.rglob("*") if path.is_file()]
-        self.assertEqual(len(self.installed_files), 19)
+        self.assertEqual(len(self.installed_files), 20)
 
     def run_command(self, *arguments):
         return subprocess.run(
@@ -435,6 +435,7 @@ class UninstallTests(unittest.TestCase):
             ".claude/agents/fast.md",
             ".claude/agents/worker.md",
             ".claude/agents/reviewer.md",
+            ".claude/agents/oracle.md",
             ".claude/rules/delegation.md",
         }
         self.assertEqual(self.installed_relative_paths(self.home), before - removed)
@@ -496,7 +497,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("Install scope", output)
         self.assertIn("Selected: all", output)
         self.assertGreaterEqual(output.count("●"), len(("codex", "claude", "opencode", "grok")) + 1)
-        self.assertEqual(len(self.installed_relative_paths(home)), 19)
+        self.assertEqual(len(self.installed_relative_paths(home)), 20)
 
     def test_interactive_update_confirms_the_highlighted_scope(self):
         before = {path: path.read_bytes() for path in self.installed_files}
@@ -568,7 +569,7 @@ class UninstallTests(unittest.TestCase):
         )
         self.assertEqual(returncode, 0, output)
         self.assertIn("Selected: all", output)
-        self.assertEqual(len(self.installed_relative_paths(home)), 19)
+        self.assertEqual(len(self.installed_relative_paths(home)), 20)
 
     def test_interactive_cancel_is_red_and_changes_nothing(self):
         home = self.fresh_home("interactive-cancel")
