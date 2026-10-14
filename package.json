@@ -1,0 +1,31 @@
+{
+  "name": "@rujealfon/coding-agent-setup",
+  "version": "1.0.0",
+  "description": "Install Codex, Claude Code, OpenCode, and Grok Build agent setup files.",
+  "bin": {
+    "coding-agent-setup": "./bin/coding-agent-setup"
+  },
+  "files": [
+    "bin",
+    "install-agents.py",
+    "previous-install-hashes.json",
+    "codex",
+    "claude",
+    "opencode",
+    "grok",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rujealfon/coding-agent-setup.git"
+  },
+  "homepage": "https://github.com/rujealfon/coding-agent-setup#readme",
+  "bugs": {
+    "url": "https://github.com/rujealfon/coding-agent-setup/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "author": "Ruje Alfon"
+}
