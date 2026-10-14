@@ -248,7 +248,7 @@ resolved default or inherited effort; it does not enable automatic task-based
 selection. Custom agent files that explicitly set effort override spawn settings.
 [Codex subagent settings](https://learn.chatgpt.com/docs/agent-configuration/subagents)
 
-For existing installations, run `python3 install-agents.py --update` to replace
+For existing installations, run `npx @rujealfon/coding-agent-setup --update` to replace
 the earlier definitions and delegation policy with backups. The installer leaves
 `~/.codex/config.toml` unchanged. If you want the model default as the fallback
 when no effort is selected at spawn time, remove
@@ -299,7 +299,7 @@ instructions. These destinations match the tools' global instruction discovery:
 [Grok rules directories](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/12-project-rules.md#rules-directories).
 
 The former root `delegation.md` has been replaced by these four source files.
-Installed paths are unchanged. Run `python3 install-agents.py --update` to replace
+Installed paths are unchanged. Run `npx @rujealfon/coding-agent-setup --update` to replace
 recognized shared policies with the provider-specific versions and retain backups.
 Customized instructions still stop the update before any files are changed.
 
@@ -346,36 +346,30 @@ to check the available agents. See
 
 ## Install or upgrade
 
-Install the tools you intend to use and have Python 3 available. The installer
-uses only Python's standard library. It installs configuration and does not
-install the tools or configure credentials.
+Install the tools you intend to use. You also need Node.js 18 or newer, for
+`npx`, and Python 3. The installer uses only Python's standard library. It
+installs configuration and does not install the tools or configure credentials.
 
-On a terminal, install, update, and uninstall open a checkbox menu titled
-`Install scope`, `Update scope`, or `Uninstall scope`. Every tool starts
-checked, so `All` and each tool are highlighted. The arrow keys move, Space
-toggles the current row, and Enter confirms every checked tool. Choosing `All`
-checks or clears Codex, Claude, OpenCode, and Grok together. Any combination
-can stay checked.
-A piped or other non-interactive run operates on all four tools. Pass `--tool`
-once per tool to make the same choice without a prompt:
+Run this from any directory:
 
 ```sh
-python3 install-agents.py --tool grok
-python3 install-agents.py --tool codex --tool grok
-python3 install-agents.py --tool codex --update
-python3 install-agents.py --tool claude --uninstall
+npx @rujealfon/coding-agent-setup
 ```
 
-From the cloned `coding-agent-setup` directory, preview a fresh installation:
+On a terminal, that opens a checkbox menu titled `Install scope`. Every tool
+starts checked, so `All` and each tool are highlighted. The arrow keys move,
+Space toggles the current row, and Enter confirms every checked tool. Choosing
+`All` checks or clears Codex, Claude, OpenCode, and Grok together. Any
+combination can stay checked. A piped or other non-interactive run installs all
+four tools.
+
+Pass `--tool` once per tool to choose without the menu. Preview first with
+`--dry-run`:
 
 ```sh
-python3 install-agents.py --dry-run
-```
-
-Install the files:
-
-```sh
-python3 install-agents.py
+npx @rujealfon/coding-agent-setup --dry-run
+npx @rujealfon/coding-agent-setup --tool grok
+npx @rujealfon/coding-agent-setup --tool codex --tool grok
 ```
 
 The custom roles are now named `runner` (formerly `fast`), `fixer` (`worker`),
@@ -384,11 +378,13 @@ Codex `default` and OpenCode’s built-in `explore` and `general` keep their nam
 An update backs up and removes recognized old agent files as it installs the new
 names. Customized old agents stop the update for manual review.
 
-To upgrade an earlier version of this setup, preview and then apply the update:
+To upgrade an earlier version of this setup, preview and then apply the update.
+`--update` opens an `Update scope` menu on a terminal when you omit `--tool`:
 
 ```sh
-python3 install-agents.py --update --dry-run
-python3 install-agents.py --update
+npx @rujealfon/coding-agent-setup --update --dry-run
+npx @rujealfon/coding-agent-setup --update
+npx @rujealfon/coding-agent-setup --tool codex --update
 ```
 
 The installer checks the selected destinations before writing. Identical files stay as
@@ -411,21 +407,22 @@ under `agents` from [opencode/opencode.jsonc](opencode/opencode.jsonc) manually.
 Configs with JSONC comments or trailing commas still require manual review.
 
 Start fresh tool sessions after installing. To preview installation under another
-home directory, use `--target-home /path/to/home --dry-run`. This option is also
+home directory, add `--target-home /path/to/home --dry-run`. This option is also
 useful for testing the installer without changing your personal configuration.
+
+Inside a clone of this repository, the same flags work through
+`python3 install-agents.py` instead of `npx @rujealfon/coding-agent-setup`.
 
 ## Uninstall
 
-Preview which installed files would be removed:
+`--uninstall` opens an `Uninstall scope` menu on a terminal when you omit
+`--tool`. Preview which installed files would be removed, then remove the
+recognized agent definitions and delegation rules:
 
 ```sh
-python3 install-agents.py --uninstall --dry-run
-```
-
-Remove the recognized agent definitions and delegation rules:
-
-```sh
-python3 install-agents.py --uninstall
+npx @rujealfon/coding-agent-setup --uninstall --dry-run
+npx @rujealfon/coding-agent-setup --uninstall
+npx @rujealfon/coding-agent-setup --tool claude --uninstall
 ```
 
 Add `--tool opencode` to remove one tool, repeat `--tool` for several, or check
@@ -452,6 +449,8 @@ Use `--target-home /path/to/home` to uninstall from another home directory.
 
 ```text
 coding-agent-setup/
+├── bin/
+│   └── coding-agent-setup
 ├── codex/
 │   └── AGENTS.md
 ├── claude/
@@ -462,6 +461,7 @@ coding-agent-setup/
 │   └── rules/delegation.md
 ├── install-agents.py
 ├── install-claude-opencode.py
+├── package.json
 ├── previous-install-hashes.json
 ├── tests/
 ├── README.md
@@ -477,6 +477,8 @@ coding-agent-setup/
 | `grok/*.md` | Grok Build agent definitions |
 | `codex/AGENTS.md`, `opencode/AGENTS.md` | Provider-specific global delegation instructions |
 | `claude/rules/delegation.md`, `grok/rules/delegation.md` | Provider-specific global delegation rules |
+| `package.json` | npm package `@rujealfon/coding-agent-setup` |
+| `bin/coding-agent-setup` | `npx` entry point that runs `install-agents.py` |
 | `install-agents.py` | Combined installer and uninstaller for all four tools, or a selected combination |
 | `install-claude-opencode.py` | Compatibility entry point that calls the combined installer |
 | `previous-install-hashes.json` | Fingerprints of recognized earlier configurations for safe upgrades |
