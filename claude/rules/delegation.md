@@ -22,9 +22,9 @@ non-trivial changes, plan and delegate rather than implementing them yourself.
   question is a small lookup. Also use it for a bug that two attempts have not
   fixed. Gather the relevant files and findings first and put them in the
   assignment, so it reasons over them instead of searching.
-- Prefer the configured `inspector` over plugin reviewers such as
-  `agent-skills:code-reviewer`; use a plugin agent only when its specialty (for
-  example security audit or test design) is what the task needs.
+- Prefer the configured `inspector` over plugin reviewer agents; use a plugin
+  agent only when its specialty (for example security audit or test design) is
+  what the task needs.
 - Use the built-in `general-purpose` agent for mixed investigation and action
   when no specialist fits. It can spawn agents, so tell it in the assignment not
   to delegate further.
