@@ -1,6 +1,19 @@
 #!/usr/bin/env sh
 set -eu
-ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+
+# npm exposes this file through a node_modules/.bin symlink. Follow it so the
+# package root is the directory that contains install-agents.py.
+SOURCE=$0
+while [ -L "$SOURCE" ]; do
+  DIR=$(CDPATH= cd -- "$(dirname "$SOURCE")" && pwd)
+  LINK=$(readlink "$SOURCE")
+  case $LINK in
+    /*) SOURCE=$LINK ;;
+    *) SOURCE=$DIR/$LINK ;;
+  esac
+done
+ROOT=$(CDPATH= cd -- "$(dirname "$SOURCE")/.." && pwd)
+
 if ! command -v python3 >/dev/null 2>&1; then
   echo "coding-agent-setup needs Python 3." >&2
   exit 1

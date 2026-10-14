@@ -410,8 +410,10 @@ Start fresh tool sessions after installing. To preview installation under anothe
 home directory, add `--target-home /path/to/home --dry-run`. This option is also
 useful for testing the installer without changing your personal configuration.
 
-Inside a clone of this repository, the same flags work through
-`python3 install-agents.py` instead of `npx @rujealfon/coding-agent-setup`.
+Inside a clone of this repository, `npx` finds this package locally and
+runs the `coding-agent-setup` command from `node_modules/.bin`. That link
+is included in the clone. The same flags also work through
+`python3 install-agents.py`.
 
 ## Uninstall
 
