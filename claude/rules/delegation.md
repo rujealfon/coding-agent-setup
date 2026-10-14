@@ -32,9 +32,8 @@ non-trivial changes, plan and delegate rather than implementing them yourself.
   task: low for simple lookups, medium for routine implementation, and high for
   complex investigation or review. Respect explicit user requests for effort.
 - Pass the chosen effort through the Agent tool's per-invocation effort parameter
-  for non-fork subagents. This requires v2.1.292 or later. If unavailable, use the
-  session default and report that limitation. Respect the
-  `CLAUDE_CODE_EFFORT_LEVEL` environment override when set.
+  for non-fork subagents. Respect the `CLAUDE_CODE_EFFORT_LEVEL` environment
+  override when set.
 - Give each assignment its objective, relevant context, file ownership or read-only
   scope, acceptance criteria, and expected evidence. Give inspectors the diff,
   baseline, requirements, and available test results; their tools cannot run git

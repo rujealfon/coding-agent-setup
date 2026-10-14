@@ -256,11 +256,10 @@ when no effort is selected at spawn time, remove
 effort takes precedence over that global default either way.
 
 Claude agent files set a default `effort` in their frontmatter: low for `runner`,
-medium for `fixer`, and high for `inspector` and `consultant`. On Claude Code v2.1.292
-or later, the delegation policy also asks the primary agent to pass a supported
-effort level through the Agent tool for each non-fork subagent invocation, using
-the same task guidance as Codex. On older versions, the primary agent reports the
-limitation. `CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation choices.
+medium for `fixer`, and high for `inspector` and `consultant`. The delegation
+policy also asks the primary agent to pass a supported effort level through the
+Agent tool for each non-fork subagent invocation, using the same task guidance as
+Codex. `CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation choices.
 Unset that environment variable to let the primary agent choose effort.
 The installer leaves Claude settings and shell environment variables unchanged.
 Restart Claude Code after updating to load the new agent definitions.
