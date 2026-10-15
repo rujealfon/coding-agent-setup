@@ -1,6 +1,6 @@
 {
   "name": "@rujealfon/coding-agent-setup",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Install Codex, Claude Code, OpenCode, and Grok Build agent setup files.",
   "bin": {
     "coding-agent-setup": "./bin/coding-agent-setup"
