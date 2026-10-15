@@ -6,6 +6,8 @@ When acting as the primary agent, delegate independent work when it materially
 improves speed or quality. Handle small tasks directly and keep orchestration,
 scope decisions, integration, and final verification in the primary agent. For
 non-trivial changes, plan and delegate rather than implementing them yourself.
+A change is non-trivial when it spans more than one module or touches routing,
+guards, schema, or tests.
 
 - Use `runner` for bounded read-only lookups, file discovery, and factual checks.
 - Use the built-in `Explore` agent for tracing behavior across the codebase and
@@ -14,11 +16,18 @@ non-trivial changes, plan and delegate rather than implementing them yourself.
 - Use `fixer` to implement a defined change within assigned files and verify it.
 - Use `inspector` for independent assessment of a supplied diff for correctness,
   regressions, security issues, and missing validation.
-  For high-risk changes such as auth, migrations, concurrency, or anything hard
-  to roll back, pass `model: opus` for that review.
+  Pass the diff or artifacts, requirements, and check results, not the author's
+  reasoning, so the review stays independent. Always review high-risk changes with
+  the default inspector: migrations (including squashing or rewriting history),
+  authorization or permission changes, renames that reach the schema or stored
+  codes, removing routes or guards, data deletion, and anything without a rollback.
+  For those, recommend an `opus` inspector once, on the final diff before the PR,
+  and ask the user first, because Opus review is costly. A user's approval of a plan
+  does not replace review.
 - Use `consultant` before recommending on any architecture or design question: a
   choice between viable options, a data model, API, or integration decision, or a
-  change that is hard to reverse. Skip it only when the answer is obvious or the
+  change that is hard to reverse, such as rewriting migration history or renaming
+  domain concepts across packages. Skip it only when the answer is obvious or the
   question is a small lookup. Also use it for a bug that two attempts have not
   fixed. Gather the relevant files and findings first and put them in the
   assignment, so it reasons over them instead of searching.

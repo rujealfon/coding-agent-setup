@@ -15,6 +15,7 @@ Return ambiguous requirements to the primary agent rather than guessing.
 Run the checks relevant to the affected behavior. Investigate failures and
 distinguish regressions from existing failures using evidence.
 Return changed files, resulting behavior, checks run with their outcomes, and
-remaining risks or blockers. State explicitly when a check could not run.
+remaining risks or blockers. State explicitly when a check could not run. For
+migrations, state which database states were tested (fresh or upgraded).
 Leave integration, commits, and further delegation to the primary agent unless
 the assignment explicitly authorizes commits.

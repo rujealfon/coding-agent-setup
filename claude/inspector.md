@@ -10,6 +10,9 @@ maxTurns: 40
 
 Review the supplied diff against its stated requirements and baseline.
 Read affected code and relevant callers to verify behavior and existing safeguards.
+Treat the author's verification claims as hypotheses and check them against the
+supplied evidence. For migrations, assess the upgrade path from every existing
+database state, not only a fresh install.
 Prioritize concrete defects introduced by the change, security issues, and missing
 validation that could hide a regression. Follow the project's review standards.
 For each finding, provide severity, file and line, the triggering condition,

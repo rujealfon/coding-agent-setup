@@ -41,8 +41,8 @@ verifies the outcome. Each tool gets the crew members listed below.
 - `general` is OpenCode's built-in subagent for bounded mixed investigation and implementation when no specialist fits. Prefer Fixer for a defined change and Explore for tracing.
 
 N/A means this setup does not provide that role for the tool. The model table
-shows configured defaults; Claude Inspector escalates to Opus for high-risk reviews
-as described below.
+shows configured defaults; Claude Inspector can escalate to Opus for high-risk
+reviews, with your approval, as described below.
 
 Each provider has its own delegation policy. Those policies route deeper
 investigation to Codex `tracker`, OpenCode
@@ -117,10 +117,12 @@ assignments. Fixers retain inherited tools for project-specific workflows but
 cannot spawn further subagents through Agent. Runner, inspector, and consultant use explicit
 inspection tool lists, which also exclude shell, edits, and MCP tools. Send work
 requiring those tools to the primary agent or a suitably scoped fixer.
-The four custom agents have configured model and effort defaults. For high-risk
-changes such as authentication, migrations, concurrency, or work that is hard to
-roll back, the delegation policy overrides Inspector's Sonnet default with
-`model: opus`. Other custom agents use their configured models.
+The four custom agents have configured model and effort defaults. High-risk
+changes (migrations, authorization, schema renames, removed routes or guards, data
+deletion, or work that is hard to roll back) always get an Inspector review. For
+those, the delegation policy has the primary agent recommend an `opus` Inspector
+once, on the final diff, and ask first because Opus review is costly. Other custom
+agents use their configured models.
 
 Claude's policy consults before recommending on architecture or design questions,
 including data models, APIs, integrations, and hard-to-reverse choices, except
