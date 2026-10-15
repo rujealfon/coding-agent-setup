@@ -176,5 +176,11 @@
   ],
   ".grok/agents/inspector.md": [
     "46e6b5a7faa42bf6aa32dc05d684bd579af16d56a4889d1441b046df4f1b1007"
+  ],
+  ".claude/agents/fixer.md": [
+    "6b5d861cb28fd762fa079b2c6627ec61de291422124cad2556c1322651ae3112"
+  ],
+  ".claude/agents/inspector.md": [
+    "99a884a917889e3665ffaf7f0bda3ef0779d386eaac467e0c62fafc21e2f1352"
   ]
 }
