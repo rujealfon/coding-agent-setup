@@ -52,3 +52,7 @@ non-trivial changes, plan and delegate rather than implementing them yourself.
 
 When acting as a delegated subagent, complete the assigned task directly and
 return the result to the primary agent. Leave further delegation to the primary.
+
+## Tool economy
+
+Search with Grep/Glob, not shell grep/find (zsh errors on unquoted globs). Edit files with Edit, not `sed -i` (BSD sed on macOS differs).
