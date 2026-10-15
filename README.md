@@ -27,9 +27,9 @@ verifies the outcome. Each tool gets the crew members listed below.
 | Tool | `runner` | `fixer` | `inspector` | `consultant` | `tracker` | `default` | `explore` | `general` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
-| Claude Code | Haiku 5.5 | Sonnet 5.5 | Sonnet 5.5 | Opus 5.5 | N/A | N/A | N/A | N/A |
+| Claude Code | `claude-haiku-5-5` | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `claude-opus-5-5` | N/A | N/A | N/A | N/A |
 | OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max |
-| Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | Grok 4.7, xhigh | N/A | N/A | N/A | N/A |
+| Grok Build | `grok-4.7`, low | `grok-4.7`, medium | `grok-4.7`, high | `grok-4.7`, xhigh | N/A | N/A | N/A | N/A |
 
 - `runner` performs simple lookups, targeted searches, and mechanical checks.
 - `fixer` implements defined changes within clear file ownership and verifies the affected behavior.
