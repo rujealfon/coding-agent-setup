@@ -9,19 +9,20 @@ The delegation rules apply across projects on the machine where you install them
 
 ## Models and roles
 
-Meet the **Detective Crew**: Runner gathers facts, Tracker follows leads through
-the codebase, Consultant recommends an approach when the decision is difficult,
-Fixer implements the agreed solution, and Inspector checks the resulting change.
+Meet the **Detective Crew**: Runner gathers facts, Fixer implements the agreed
+solution, Inspector checks the resulting change, Consultant recommends an
+approach when the decision is difficult, and Tracker follows leads through
+the codebase.
 The primary agent coordinates the case, makes decisions, integrates changes, and
 verifies the outcome. Each tool gets the crew members listed below.
 
 | Crew member | Question it answers | Expected result |
 | --- | --- | --- |
 | **Runner** | Where is it, and what are the facts? | A concise answer with file or source references |
-| **Tracker** | How does this work, and what caused the problem? | Execution paths, likely causes, evidence, and remaining uncertainty |
-| **Consultant** | Which approach should we take, and why? | A recommendation, alternatives, trade-offs, risks, and supporting evidence |
 | **Fixer** | Can you implement the agreed solution? | Scoped changes, relevant checks, and their outcomes |
 | **Inspector** | Does this change work correctly, and what did we miss? | Concrete findings with impact and evidence, or no findings with verification limits |
+| **Consultant** | Which approach should we take, and why? | A recommendation, alternatives, trade-offs, risks, and supporting evidence |
+| **Tracker** (Codex only) | How does this work, and what caused the problem? | Execution paths, likely causes, evidence, and remaining uncertainty |
 
 | Tool | `runner` | `fixer` | `inspector` | `consultant` | `tracker` | `default` | `explore` | `general` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -31,10 +32,11 @@ verifies the outcome. Each tool gets the crew members listed below.
 | Grok Build | Grok 4.7, low | Grok 4.7, medium | Grok 4.7, high | Grok 4.7, xhigh | N/A | N/A | N/A | N/A |
 
 - `runner` performs simple lookups, targeted searches, and mechanical checks.
-- `tracker` (Codex only) traces behavior, dependencies, and likely causes across files without editing code.
 - `fixer` implements defined changes within clear file ownership and verifies the affected behavior.
 - `inspector` independently assesses correctness, regressions, security issues, and missing validation with read-only tools.
 - `consultant` (all four providers) advises on architecture, design trade-offs, and stubborn bugs with inspection tools. It uses Astra in Codex, Opus at high effort in Claude Code, GLM-5.3-Flash at max in OpenCode, and Grok 4.7 at xhigh in Grok Build; the primary agent stays on your main model. See [consultation and handoffs](#consultation-and-handoffs) for when to call it.
+- `tracker` (Codex only) traces behavior, dependencies, and likely causes across files without editing code.
+- `default` is Codex's subagent for bounded mixed investigation and implementation when no specialist fits. Prefer Fixer for a defined change and Tracker for tracing.
 - `explore` is OpenCode's built-in subagent for tracing behavior, dependencies, and likely causes without code edits. Prefer Runner for bounded factual lookups.
 - `general` is OpenCode's built-in subagent for bounded mixed investigation and implementation when no specialist fits. Prefer Fixer for a defined change and Explore for tracing.
 
@@ -95,11 +97,11 @@ scope decisions, integration, and final verification in the primary conversation
 | Agent | Assignment | Tool access |
 | --- | --- | --- |
 | `runner` | Bounded factual lookup or file discovery with references | Read, Glob, Grep, WebFetch, WebSearch |
-| `Explore` built-in | Trace behavior and dependencies across the codebase | Built-in read-only tools |
-| `Plan` built-in | Gather research during plan mode | Built-in read-only tools |
 | `fixer` | Implement an agreed change within owned files and verify it | Inherited tools, including shell, editing, skills, and MCP; Agent disabled |
 | `inspector` | Review a supplied diff for concrete defects and explain their impact | Read, Glob, Grep, WebFetch, WebSearch |
 | `consultant` | Advise on architecture, design trade-offs, and stubborn bugs; use sparingly | Read, Glob, Grep, WebFetch, WebSearch |
+| `Explore` built-in | Trace behavior and dependencies across the codebase | Built-in read-only tools |
+| `Plan` built-in | Gather research during plan mode | Built-in read-only tools |
 | `general-purpose` built-in | Mixed investigation and action without a matching specialist | Built-in available tools |
 
 Use only the stages the task needs. For a change that needs investigation, gather
@@ -140,10 +142,10 @@ the primary agent.
 | Agent | Assignment | Configuration |
 | --- | --- | --- |
 | `runner` | Bounded factual lookup or file discovery | Muse Spark 1.3 Contributor, high; inherited permissions |
-| `explore` | Trace behavior and dependencies across files | Muse Spark 1.3 Contributor, high; built-in exploration permissions |
 | `fixer` | Implement an agreed change and verify it | DeepSeek V4.1 Flash, max; inherited permissions |
 | `inspector` | Review a supplied diff for concrete defects | DeepSeek V4.1 Flash, max; inspection tools |
 | `consultant` | Advise on unresolved design choices and stubborn bugs | GLM-5.3-Flash, max; inspection tools |
+| `explore` | Trace behavior and dependencies across files | Muse Spark 1.3 Contributor, high; built-in exploration permissions |
 | `general` | Mixed investigation and implementation | DeepSeek V4.1 Flash, max; built-in general permissions |
 
 Follow the [consultation and handoff guidance](#consultation-and-handoffs), using
@@ -200,10 +202,10 @@ directly.
 | Agent | Assignment | Configuration |
 | --- | --- | --- |
 | `runner` | Bounded factual lookup or file discovery with references | Luna; read-only sandbox |
-| `tracker` | Trace behavior, dependencies, and likely causes across files | Luna; read-only sandbox |
 | `fixer` | Implement an agreed change within owned files and verify it | Sol; inherited permissions |
 | `inspector` | Review a specified diff for concrete defects and explain their impact | Sol; read-only sandbox |
 | `consultant` | Advise on architecture, difficult trade-offs, and stubborn bugs | Astra; read-only sandbox |
+| `tracker` | Trace behavior, dependencies, and likely causes across files | Luna; read-only sandbox |
 | `default` | Bounded mixed investigation and implementation without a matching specialist | Sol; inherited permissions |
 
 Give each assignment its objective, relevant context, file ownership or read-only
@@ -214,7 +216,7 @@ baseline, requirements, and validation results. The primary agent verifies findi
 coordinates fixes, and reruns affected checks. Use only the stages a task needs.
 
 Follow the [consultation and handoff guidance](#consultation-and-handoffs) when
-choosing between Tracker, Consultant, Fixer, and Inspector.
+choosing between Fixer, Inspector, Consultant, and Tracker.
 
 Runner, tracker, inspector, and consultant are configured with `sandbox_mode = "read-only"`.
 Codex can reapply parent runtime permission overrides when spawning, so these are
