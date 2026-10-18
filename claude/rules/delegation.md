@@ -68,4 +68,5 @@ return the result to the primary agent. Leave further delegation to the primary.
 
 ## Tool economy
 
-Search with Grep/Glob, not shell grep/find (zsh errors on unquoted globs). Edit files with Edit, not `sed -i` (BSD sed on macOS differs).
+Search with Grep/Glob, not shell grep/find (zsh errors on unquoted globs). When
+Grep is unavailable, use `git grep`, which skips untracked build output. Edit files with Edit, not `sed -i` (BSD sed on macOS differs).
