@@ -51,6 +51,10 @@ guards, schema, or tests.
   Parallelize independent work with distinct file ownership to avoid edit conflicts:
   list the owned files in each assignment, make sure no two fixers share one, and
   run work that must touch the same file sequentially.
+- Tell each `fixer` to run only the checks for its owned files, and never a
+  test project that shares a database with another running fixer. Run the full
+  lint, type-check, and test suites once yourself, after integration, and never
+  two test runs at once.
 - Integrate changes before reviewing the combined result. Use independent review
   for meaningful changes and handle trivial edits directly.
 - Resolve missing context and scope dependencies in the primary agent, then resume
