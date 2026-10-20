@@ -210,6 +210,18 @@ directly.
 | `tracker` | Trace behavior, dependencies, and likely causes across files | Luna; read-only sandbox |
 | `default` | Bounded mixed investigation and implementation without a matching specialist | Sol; inherited permissions |
 
+Implement cohesive tasks in the primary agent. Delegate substantial independent
+workstreams when parallel progress or separate assessment earns the overhead.
+Use independent review for meaningful changes, including authentication,
+authorization, encryption, migrations, and data integrity; solo implementation
+can still receive a scoped Inspector review.
+
+Prefer fresh, bounded assignments containing the relevant project instructions,
+requirements, and evidence. Keep responsibilities distinct when project rules
+require multiple reviews. Workers run focused checks; the primary agent owns
+repository-wide verification after integration and review fixes, repeating checks
+when later changes or unresolved concerns justify it.
+
 Give each assignment its objective, relevant context, file ownership or read-only
 scope, acceptance criteria, and expected evidence. Gather any required investigation
 before starting fixers. Parallelize independent work with distinct file ownership,
@@ -234,9 +246,8 @@ An ambiguous task or weak result should return to the primary agent for a cleare
 assignment or different specialist, rather than spawning an additional hierarchy.
 [Codex agent configuration and permissions](https://learn.chatgpt.com/docs/agent-configuration/subagents)
 
-The primary agent delegates when independent work can run in parallel and doing
-so would improve speed or quality. It handles small tasks directly. Edit the
-provider-specific policies listed below to change how each tool delegates work.
+Edit the provider-specific policies listed below to change how each tool delegates
+work; the Codex policy defaults to solo implementation for cohesive tasks.
 
 These definitions configure subagents. Select your daily main model separately
 in the tool's model selector or settings. The installer does not set the main
@@ -244,9 +255,25 @@ model, main effort, or default primary agent. The Codex `default` definition is
 a subagent role.
 
 Codex agent files omit `model_reasoning_effort` so the primary agent can select
-an effort when spawning each subagent. The delegation policy asks it to choose
-low for simple lookups, medium for routine implementation, and high for complex
-investigation or review, using a level supported by the selected model.
+an effort when spawning each subagent. The Codex policy uses these task-selection
+targets, with escalation for more demanding work:
+
+| Role | Usual effort | Escalation |
+| --- | --- | --- |
+| `runner` | Low | Medium for ambiguous lookups |
+| `tracker` | Medium | Consultant for unresolved complex causes |
+| `fixer`, `default` | Medium | High for difficult implementation or persistent failures |
+| `inspector` | Medium | High for complex authorization, cryptography, migration, or integrity review |
+| `consultant` | Low for bounded advice | Medium or high for consequential unresolved decisions |
+
+Keep the configured model roster. A role consumes tokens when invoked; assigning
+Sol to multiple roles does not itself incur usage. Trial cheaper implementation
+models on bounded mechanical tasks before changing general implementation or
+review roles. Compare uncached input, cached input, output, elapsed time, findings,
+and corrective work on matched tasks. Different-task token totals do not establish
+causal savings, and usage records are not a final bill.
+
+Use effort levels supported by the selected model.
 This is a choice made at spawn time. Omitting the field alone uses Codex's
 resolved default or inherited effort; it does not enable automatic task-based
 selection. Custom agent files that explicitly set effort override spawn settings.
@@ -500,6 +527,10 @@ delegation and access to every configured model have not been verified.
 Grok Build 1.0.46 discovers the native agents and delegation rule in a temporary
 home directory with `grok inspect --json`.
 
+[CI](.github/workflows/ci.yml) runs the installer tests on Ubuntu with Python 3.13
+for pushes, pull requests, and manual runs. The suite uses only the standard
+library and installs into temporary home directories.
+
 Run the tests with Python's standard library:
 
 ```sh
@@ -511,6 +542,70 @@ Agent format references: [Codex subagents](https://learn.chatgpt.com/docs/agent-
 [OpenCode v2 agents](https://opencode.ai/v2/docs/agents). Grok Build references:
 [subagents](https://docs.x.ai/build/features/subagents) and
 [agent definitions](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-agent/README.md).
+
+## Local Codex usage reports
+
+From a clone, run the read-only reporting tool with Python 3.9 or newer. It uses
+only the standard library; it is not installed into your personal agent config
+or included in the npm package. By default it reads `~/.codex/sessions`.
+
+```sh
+python3 -B tools/session-usage.py list --cwd /path/to/project
+python3 -B tools/session-usage.py turns --session SESSION_ID
+python3 -B tools/session-usage.py report --session SESSION_ID \
+  --from-turn START_TURN --through-turn END_TURN
+python3 -B tools/session-usage.py report --session SESSION_ID \
+  --from-turn START_TURN --through-turn END_TURN --format json > /tmp/usage.json
+```
+
+Use the full IDs from `list` and `turns`. Turn listings contain timestamps and
+resolved model/effort, not message text. Omit the turn bounds to report the whole
+recorded session. Both bounds are inclusive. To inspect a smaller log directory,
+put `--sessions-dir /path/to/sessions` before the subcommand.
+
+Reports group usage by agent, model, and resolved effort, and include input,
+cached and uncached input, output, reasoning as a subset of output, and cache
+writes when recorded. They sum per-response `token_usage_record.usage`, deduplicate
+response IDs, and never add cumulative counters. Conflicting duplicates use the
+latest timestamp and produce a warning. Older logs containing only cumulative
+counters are reported as unknown, not converted into zero usage. Missing or
+invalid records produce warnings; totals represent the known attributable usage.
+Selected turns or known active agents without response records appear under
+`unaccounted` with unknown usage. Even a valid report cannot prove that no log
+files are missing. The local log format is not a stable public API, so unsupported formats need
+inspection before their numbers can be trusted.
+
+Root usage is selected by turn ID. Subagents, including agents spawned earlier
+and reused during the task, are selected by response timestamp inside the root
+turn range. Calls crossing a boundary and concurrent unrelated agent work can
+therefore affect attribution. Use repeatable `--exclude-agent /root/agent_name`
+(or a thread ID) to exclude consultations or unrelated work explicitly. Automatic
+approval agents are excluded by default and itemized separately; use
+`--include-automatic` to include their recorded usage. These totals are not a bill
+and do not establish causal savings between different tasks.
+
+Elapsed time spans the first selected turn start through the last selected turn
+end. For a known interruption, use repeatable ISO UTC-offset ranges:
+
+```sh
+python3 -B tools/session-usage.py report --session SESSION_ID \
+  --pause 2026-10-20T08:24:00Z/2026-10-20T12:44:00Z
+```
+
+Overlapping pauses are merged for duration and clipped to the selected range.
+Pauses adjust elapsed time only; usage during them stays counted. An incomplete
+last turn ends at its latest recorded root usage and carries a warning. No dollar
+estimate is calculated. Reports export only accounting and identifying metadata,
+not prompts, tool output, credentials, or source contents. They still contain
+local directory paths and session/agent identifiers; review them before sharing.
+Malformed-record warnings identify the file and line without echoing its contents.
+JSON and Markdown reports go to stdout; command errors go to stderr with exit 2.
+A report with incomplete accounting can still exit 0: inspect its warnings and
+accounting fields. Listing warnings go to stderr in Markdown mode.
+
+The existing CI unittest command also runs synthetic reporting tests. Live log
+checks are read-only and require no model calls. The `compare` subcommand and
+monetary estimates are deferred until the accounting has been exercised further.
 
 ## License
 
