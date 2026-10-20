@@ -530,6 +530,8 @@ home directory with `grok inspect --json`.
 [CI](.github/workflows/ci.yml) runs the installer tests on Ubuntu with Python 3.13
 for pushes, pull requests, and manual runs. The suite uses only the standard
 library and installs into temporary home directories.
+[Publish](.github/workflows/publish.yml) runs the same tests after a push to
+`main`, then publishes the package when its version is not already on npm.
 
 Run the tests with Python's standard library:
 
