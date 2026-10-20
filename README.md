@@ -527,6 +527,10 @@ delegation and access to every configured model have not been verified.
 Grok Build 1.0.46 discovers the native agents and delegation rule in a temporary
 home directory with `grok inspect --json`.
 
+[CI](.github/workflows/ci.yml) runs the installer tests on Ubuntu with Python 3.13
+for pushes, pull requests, and manual runs. The suite uses only the standard
+library and installs into temporary home directories.
+
 Run the tests with Python's standard library:
 
 ```sh
