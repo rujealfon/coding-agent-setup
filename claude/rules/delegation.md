@@ -31,6 +31,9 @@ guards, schema, or tests.
   question is a small lookup. Also use it for a bug that two attempts have not
   fixed. Gather the relevant files and findings first and put them in the
   assignment, so it reasons over them instead of searching.
+- Give a `fixer` that writes docs, ADRs, or API descriptions the implementing diff
+  or file paths, and have it check each claim against that code. A brief alone
+  yields unverified prose.
 - Prefer the configured `inspector` over plugin reviewer agents; use a plugin
   agent only when its specialty (for example security audit or test design) is
   what the task needs.
@@ -69,4 +72,4 @@ return the result to the primary agent. Leave further delegation to the primary.
 ## Tool economy
 
 Search with Grep/Glob, not shell grep/find (zsh errors on unquoted globs). When
-Grep is unavailable, use `git grep`, which skips untracked build output. Edit files with Edit, not `sed -i` (BSD sed on macOS differs).
+Grep is unavailable, use `git grep`, which skips untracked build output. Edit files with Edit, not `sed -i` (BSD sed on macOS differs) or scripted string replacement: a pattern that no longer matches changes nothing and reports success, while Edit fails loudly.
