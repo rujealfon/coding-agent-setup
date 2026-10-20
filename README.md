@@ -210,6 +210,18 @@ directly.
 | `tracker` | Trace behavior, dependencies, and likely causes across files | Luna; read-only sandbox |
 | `default` | Bounded mixed investigation and implementation without a matching specialist | Sol; inherited permissions |
 
+Implement cohesive tasks in the primary agent. Delegate substantial independent
+workstreams when parallel progress or separate assessment earns the overhead.
+Use independent review for meaningful changes, including authentication,
+authorization, encryption, migrations, and data integrity; solo implementation
+can still receive a scoped Inspector review.
+
+Prefer fresh, bounded assignments containing the relevant project instructions,
+requirements, and evidence. Keep responsibilities distinct when project rules
+require multiple reviews. Workers run focused checks; the primary agent owns
+repository-wide verification after integration and review fixes, repeating checks
+when later changes or unresolved concerns justify it.
+
 Give each assignment its objective, relevant context, file ownership or read-only
 scope, acceptance criteria, and expected evidence. Gather any required investigation
 before starting fixers. Parallelize independent work with distinct file ownership,
@@ -234,9 +246,8 @@ An ambiguous task or weak result should return to the primary agent for a cleare
 assignment or different specialist, rather than spawning an additional hierarchy.
 [Codex agent configuration and permissions](https://learn.chatgpt.com/docs/agent-configuration/subagents)
 
-The primary agent delegates when independent work can run in parallel and doing
-so would improve speed or quality. It handles small tasks directly. Edit the
-provider-specific policies listed below to change how each tool delegates work.
+Edit the provider-specific policies listed below to change how each tool delegates
+work; the Codex policy defaults to solo implementation for cohesive tasks.
 
 These definitions configure subagents. Select your daily main model separately
 in the tool's model selector or settings. The installer does not set the main
@@ -244,9 +255,25 @@ model, main effort, or default primary agent. The Codex `default` definition is
 a subagent role.
 
 Codex agent files omit `model_reasoning_effort` so the primary agent can select
-an effort when spawning each subagent. The delegation policy asks it to choose
-low for simple lookups, medium for routine implementation, and high for complex
-investigation or review, using a level supported by the selected model.
+an effort when spawning each subagent. The Codex policy uses these task-selection
+targets, with escalation for more demanding work:
+
+| Role | Usual effort | Escalation |
+| --- | --- | --- |
+| `runner` | Low | Medium for ambiguous lookups |
+| `tracker` | Medium | Consultant for unresolved complex causes |
+| `fixer`, `default` | Medium | High for difficult implementation or persistent failures |
+| `inspector` | Medium | High for complex authorization, cryptography, migration, or integrity review |
+| `consultant` | Low for bounded advice | Medium or high for consequential unresolved decisions |
+
+Keep the configured model roster. A role consumes tokens when invoked; assigning
+Sol to multiple roles does not itself incur usage. Trial cheaper implementation
+models on bounded mechanical tasks before changing general implementation or
+review roles. Compare uncached input, cached input, output, elapsed time, findings,
+and corrective work on matched tasks. Different-task token totals do not establish
+causal savings, and usage records are not a final bill.
+
+Use effort levels supported by the selected model.
 This is a choice made at spawn time. Omitting the field alone uses Codex's
 resolved default or inherited effort; it does not enable automatic task-based
 selection. Custom agent files that explicitly set effort override spawn settings.
