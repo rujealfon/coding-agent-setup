@@ -3,8 +3,9 @@
 Personal subagent definitions and delegation rules for Codex, Claude Code,
 OpenCode v2, and Grok Build. Codex and OpenCode get six roles, Claude Code
 and Grok Build get four.
-Each role has a configured model. Codex and Claude Code reasoning effort is chosen
-by the primary agent for each task; other tools keep configured effort levels.
+Each role has a configured model. Claude Code, OpenCode, and Grok Build also set
+an effort on each role. Codex omits a fixed effort so the primary agent chooses
+one for each task. Claude's primary agent can still pass an effort when spawning.
 The delegation rules apply across projects on the machine where you install them.
 
 ## Models and roles
@@ -27,7 +28,7 @@ verifies the outcome. Each tool gets the crew members listed below.
 | Tool | `runner` | `fixer` | `inspector` | `consultant` | `tracker` | `default` | `explore` | `general` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
-| Claude Code | `claude-haiku-5-5` | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `claude-opus-5-5` | N/A | N/A | N/A | N/A |
+| Claude Code | `claude-haiku-5-5`, low | `claude-sonnet-5-5`, medium | `claude-sonnet-5-5`, high | `claude-opus-5-5`, high | N/A | N/A | N/A | N/A |
 | OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max |
 | Grok Build | `grok-4.7`, low | `grok-4.7`, medium | `grok-4.7`, high | `grok-4.7`, xhigh | N/A | N/A | N/A | N/A |
 
@@ -94,12 +95,12 @@ criteria; give Inspector the baseline, diff, requirements, and validation result
 The four custom roles complement Claude's built-in agents. Keep coordination,
 scope decisions, integration, and final verification in the primary conversation.
 
-| Agent | Assignment | Tool access |
+| Agent | Assignment | Configuration |
 | --- | --- | --- |
-| `runner` | Bounded factual lookup or file discovery with references | Read, Glob, Grep, WebFetch, WebSearch |
-| `fixer` | Implement an agreed change within owned files and verify it | Inherited tools, including shell, editing, skills, and MCP; Agent disabled |
-| `inspector` | Review a supplied diff for concrete defects and explain their impact | Read, Glob, Grep, WebFetch, WebSearch |
-| `consultant` | Advise on architecture, design trade-offs, and stubborn bugs; use sparingly | Read, Glob, Grep, WebFetch, WebSearch |
+| `runner` | Bounded factual lookup or file discovery with references | Haiku 5.5, low; max 15 turns, reports from 12 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
+| `fixer` | Implement an agreed change within owned files and verify it | Sonnet 5.5, medium; no turn limit; inherited tools, including shell, editing, skills, and MCP; Agent disabled |
+| `inspector` | Review a supplied diff for concrete defects and explain their impact | Sonnet 5.5, high; max 60 turns, reports from 50 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
+| `consultant` | Advise on architecture, design trade-offs, and stubborn bugs; use sparingly | Opus 5.5, high; max 30 turns, reports from 24 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
 | `Explore` built-in | Trace behavior and dependencies across the codebase | Built-in read-only tools |
 | `Plan` built-in | Gather research during plan mode | Built-in read-only tools |
 | `general-purpose` built-in | Mixed investigation and action without a matching specialist | Built-in available tools |
@@ -112,22 +113,43 @@ tools cannot run git or tests. The primary agent validates findings, coordinates
 fixes, and checks the result. Independent lookups or fixers can run in parallel;
 work that depends on their output waits for it.
 
+Each read-only agent starts writing its report at a tool-call budget, even if
+incomplete, and names what it did not verify; the turn limits in the table are
+the hard stop. The policy has the primary agent state a tighter budget for a
+narrow review or consultation. When a subagent returns partial, hits its turn
+limit, or returns no report, resume it with `SendMessage` and ask it to report
+now rather than restarting it. `Explore` and `Plan` cannot be resumed; start a
+new one.
+
+Fixers lint only their owned files with the repo's own linter, never run a test
+project that shares a database with another running fixer, and leave the full
+lint, type-check, and test suites to the primary agent, which runs them once
+after integration and never two test runs at once. This overrides a project's
+pre-handoff checks. A fixer that writes docs, ADRs, or API descriptions gets the
+implementing diff or file paths and checks each claim against that code. The
+policy also prefers the configured `inspector` over plugin reviewer agents, and
+tells agents to search with Grep and Glob and edit with Edit rather than shell
+`grep`/`find`, `sed -i`, or scripted replacement.
+
 Explore and Plan skip CLAUDE.md, so include relevant project constraints in their
 assignments. Fixers retain inherited tools for project-specific workflows but
 cannot spawn further subagents through Agent. Runner, inspector, and consultant use explicit
 inspection tool lists, which also exclude shell, edits, and MCP tools. Send work
 requiring those tools to the primary agent or a suitably scoped fixer.
 The four custom agents have configured model and effort defaults. High-risk
-changes (migrations, authorization, schema renames, removed routes or guards, data
-deletion, or work that is hard to roll back) always get an Inspector review. For
-those, the delegation policy has the primary agent recommend an `opus` Inspector
-once, on the final diff, and ask first because Opus review is costly. Other custom
-agents use their configured models.
+changes (migrations, including squashing or rewriting history; authorization or
+permission changes; renames that reach the schema or stored codes; removed routes
+or guards; data deletion; or anything without a rollback) always get a review from
+the default Inspector. For those, the delegation policy has the primary agent
+recommend an `opus` Inspector once, on the final diff before the PR, and ask first
+because Opus review is costly. Approving a plan does not replace review. Other
+custom agents use their configured models.
 
 Claude's policy consults before recommending on architecture or design questions,
 including data models, APIs, integrations, and hard-to-reverse choices, except
 obvious answers and small lookups. It also consults after two failed bug-fix
-attempts. For non-trivial changes, the primary agent plans and delegates
+attempts. For non-trivial changes, meaning those that span more than one module or
+touch routing, guards, schema, or tests, the primary agent plans and delegates
 implementation. Include the instruction to leave further delegation to the primary
 agent when assigning Claude's built-in `general-purpose` agent.
 
@@ -261,9 +283,9 @@ targets, with escalation for more demanding work:
 | Role | Usual effort | Escalation |
 | --- | --- | --- |
 | `runner` | Low | Medium for ambiguous lookups |
-| `tracker` | Medium | Consultant for unresolved complex causes |
+| `tracker` | Medium | High for complex investigation |
 | `fixer`, `default` | Medium | High for difficult implementation or persistent failures |
-| `inspector` | Medium | High for complex authorization, cryptography, migration, or integrity review |
+| `inspector` | Medium | High for complex or security-sensitive review |
 | `consultant` | Low for bounded advice | Medium or high for consequential unresolved decisions |
 
 Keep the configured model roster. A role consumes tokens when invoked; assigning
@@ -289,8 +311,9 @@ effort takes precedence over that global default either way.
 Claude agent files set a default `effort` in their frontmatter: low for `runner`,
 medium for `fixer`, and high for `inspector` and `consultant`. The delegation
 policy also asks the primary agent to pass a supported effort level through the
-Agent tool for each non-fork subagent invocation, using the same task guidance as
-Codex. `CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation choices.
+Agent tool for each non-fork subagent invocation: low for simple lookups, medium
+for routine implementation, and high for complex investigation or review.
+`CLAUDE_CODE_EFFORT_LEVEL`, if set, overrides per-invocation choices.
 Unset that environment variable to let the primary agent choose effort.
 The installer leaves Claude settings and shell environment variables unchanged.
 Restart Claude Code after updating to load the new agent definitions.
@@ -394,8 +417,9 @@ Space toggles the current row, and Enter confirms every checked tool. Choosing
 combination can stay checked. A piped or other non-interactive run installs all
 four tools.
 
-Pass `--tool` once per tool to choose without the menu. Preview first with
-`--dry-run`:
+At least one tool must stay checked, and Ctrl-C cancels with exit status 130.
+Pass `--tool` once per tool to choose without the menu, or `--tool all` for every
+tool (it cannot be combined with a specific tool). Preview first with `--dry-run`:
 
 ```sh
 npx @rujealfon/coding-agent-setup --dry-run
@@ -404,7 +428,8 @@ npx @rujealfon/coding-agent-setup --tool codex --tool grok
 ```
 
 The custom roles are now named `runner` (formerly `fast`), `fixer` (`worker`),
-`inspector` (`reviewer`), `consultant` (`oracle`), and Codex `tracker` (`explorer`).
+`inspector` (`reviewer`), and Codex `tracker` (`explorer`). `consultant` replaces
+Claude's former `oracle` and is new in the other tools.
 Codex `default` and OpenCode’s built-in `explore` and `general` keep their names.
 An update backs up and removes recognized old agent files as it installs the new
 names. Customized old agents stop the update for manual review.
@@ -419,8 +444,9 @@ npx @rujealfon/coding-agent-setup --tool codex --update
 ```
 
 The installer checks the selected destinations before writing. Identical files stay as
-they are. With `--update`, it replaces only files that match recorded earlier
-versions in [previous-install-hashes.json](previous-install-hashes.json) and saves
+they are. Without `--update`, a recognized earlier version stops the install with
+exit status `1` and asks you to rerun with `--update`. With `--update`, it
+replaces only files that match recorded earlier versions in [previous-install-hashes.json](previous-install-hashes.json) and saves
 a backup beside each changed file as `<filename>.bak-<UTC timestamp>`. Customized
 instructions or agents cause it to stop before changing any files. `--update`
 does not force replacement of unrecognized files.
@@ -433,7 +459,8 @@ If your customized `~/.config/opencode/opencode.jsonc` uses plain JSON and
 already contains all the specified `explore` and `general` agent fields, the
 installer preserves the entire file and continues. Extra settings, agents,
 and agent fields stay intact. Uninstall still preserves this customized file.
-Otherwise, it reports a conflict before changing any files. Merge the entries
+Otherwise, unless it matches a recorded earlier version that `--update` replaces
+with a backup, it reports a conflict before changing any files. Merge the entries
 under `agents` from [opencode/opencode.jsonc](opencode/opencode.jsonc) manually.
 Configs with JSONC comments or trailing commas still require manual review.
 
@@ -482,21 +509,59 @@ Use `--target-home /path/to/home` to uninstall from another home directory.
 
 ```text
 coding-agent-setup/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       └── publish.yml
 ├── bin/
 │   └── coding-agent-setup
+├── node_modules/
+│   └── .bin/
+│       └── coding-agent-setup
 ├── codex/
-│   └── AGENTS.md
+│   ├── AGENTS.md
+│   ├── consultant.toml
+│   ├── default.toml
+│   ├── fixer.toml
+│   ├── inspector.toml
+│   ├── runner.toml
+│   └── tracker.toml
 ├── claude/
-│   └── rules/delegation.md
+│   ├── consultant.md
+│   ├── fixer.md
+│   ├── inspector.md
+│   ├── runner.md
+│   └── rules/
+│       └── delegation.md
 ├── opencode/
-│   └── AGENTS.md
+│   ├── AGENTS.md
+│   ├── consultant.md
+│   ├── fixer.md
+│   ├── inspector.md
+│   ├── opencode.jsonc
+│   └── runner.md
 ├── grok/
-│   └── rules/delegation.md
+│   ├── consultant.md
+│   ├── fixer.md
+│   ├── inspector.md
+│   ├── runner.md
+│   └── rules/
+│       └── delegation.md
+├── tests/
+│   ├── fixtures/
+│   │   ├── pre-consultant-codex.json
+│   │   ├── pre-consultant-grok.json
+│   │   ├── pre-consultant-opencode.json
+│   │   ├── pre-detective-install.json
+│   │   └── shared-delegation.md
+│   ├── test_session_usage.py
+│   └── test_uninstall.py
+├── tools/
+│   └── session-usage.py
 ├── install-agents.py
 ├── install-claude-opencode.py
 ├── package.json
 ├── previous-install-hashes.json
-├── tests/
 ├── README.md
 └── LICENSE
 ```
@@ -515,8 +580,13 @@ coding-agent-setup/
 | `install-agents.py` | Combined installer and uninstaller for all four tools, or a selected combination |
 | `install-claude-opencode.py` | Compatibility entry point that calls the combined installer |
 | `previous-install-hashes.json` | Fingerprints of recognized earlier configurations for safe upgrades |
+| `.github/workflows/ci.yml` | Installer tests on Ubuntu for pushes, pull requests, and manual runs |
+| `.github/workflows/publish.yml` | Runs those tests on `main`, then publishes when the version is not already on npm |
+| `tools/session-usage.py` | Read-only local Codex session usage report; not installed or published |
 | `tests/test_uninstall.py` | Tests installation, upgrades, removal, and preservation in temporary home directories |
+| `tests/test_session_usage.py` | Synthetic tests for the local Codex usage report |
 | `tests/fixtures/shared-delegation.md` | Frozen shared policy for upgrade regression tests |
+| `tests/fixtures/pre-*.json` | Recorded earlier installs for upgrade regression tests |
 
 The installer resolves source files relative to its own location, so the clone
 can live anywhere. Repository files are the editable source; installed copies
@@ -566,9 +636,9 @@ recorded session. Both bounds are inclusive. To inspect a smaller log directory,
 put `--sessions-dir /path/to/sessions` before the subcommand.
 
 Reports group usage by agent, model, and resolved effort, and include input,
-cached and uncached input, output, reasoning as a subset of output, and cache
-writes when recorded. They sum per-response `token_usage_record.usage`, deduplicate
-response IDs, and never add cumulative counters. Conflicting duplicates use the
+cached and uncached input, output, and reasoning as a subset of output, with cache
+writes in the totals when recorded. They sum per-response
+`token_usage_record.usage`, deduplicate response IDs, and never add cumulative counters. Conflicting duplicates use the
 latest timestamp and produce a warning. Older logs containing only cumulative
 counters are reported as unknown, not converted into zero usage. Missing or
 invalid records produce warnings; totals represent the known attributable usage.
