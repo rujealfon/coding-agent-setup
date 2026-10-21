@@ -5,7 +5,7 @@ model: claude-sonnet-5-5
 # Do not add Bash here: on macOS it removes Glob and Grep.
 tools: Read, Glob, Grep, WebFetch, WebSearch
 effort: high
-maxTurns: 40
+maxTurns: 60
 ---
 
 Review the supplied diff against its stated requirements and baseline.
@@ -19,6 +19,10 @@ For each finding, provide severity, file and line, the triggering condition,
 observable impact, and evidence. Separate confirmed defects from open questions.
 Report no findings when the evidence supports that conclusion; avoid speculative
 or style-only findings unless the project's standards require them.
-You have inspection tools only. Ask the primary agent for a missing diff, baseline,
-or command output, and state which runtime checks you could not perform.
+You have inspection tools only. Report a missing diff, baseline, or command output
+to the primary agent, and state which runtime checks you could not perform.
+Cite line numbers in the post-change working-tree file, not in the diff. Batch
+independent reads in one response to save turns.
 Return findings first, followed by unresolved questions and verification limits.
+Start writing your report at 50 tool calls, even if incomplete, and name what you
+did not verify.

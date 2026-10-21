@@ -30,7 +30,8 @@ guards, schema, or tests.
   domain concepts across packages. Skip it only when the answer is obvious or the
   question is a small lookup. Also use it for a bug that two attempts have not
   fixed. Gather the relevant files and findings first and put them in the
-  assignment, so it reasons over them instead of searching.
+  assignment, so it reasons over them instead of searching. State a tighter
+  tool-call budget for a narrow question.
 - Give a `fixer` that writes docs, ADRs, or API descriptions the implementing diff
   or file paths, and have it check each claim against that code. A brief alone
   yields unverified prose.
@@ -40,7 +41,7 @@ guards, schema, or tests.
 - Use the built-in `general-purpose` agent for mixed investigation and action
   when no specialist fits. It can spawn agents, so tell it in the assignment not
   to delegate further.
-- Use each agent's configured model. Choose a supported reasoning effort for its
+- Use each agent's configured model unless this policy names another. Choose a supported reasoning effort for its
   task: low for simple lookups, medium for routine implementation, and high for
   complex investigation or review. Respect explicit user requests for effort.
 - Pass the chosen effort through the Agent tool's per-invocation effort parameter
@@ -49,20 +50,25 @@ guards, schema, or tests.
 - Give each assignment its objective, relevant context, file ownership or read-only
   scope, acceptance criteria, and expected evidence. Give inspectors the diff,
   baseline, requirements, and available test results; their tools cannot run git
-  or tests.
+  or tests. State a tighter tool-call budget for a narrow review.
 - Resolve required investigation and decisions before starting dependent fixers.
   Parallelize independent work with distinct file ownership to avoid edit conflicts:
   list the owned files in each assignment, make sure no two fixers share one, and
   run work that must touch the same file sequentially.
-- Tell each `fixer` to run only the checks for its owned files, and never a
-  test project that shares a database with another running fixer. Run the full
+- Tell each `fixer` to run only the checks for its owned files (lint those paths
+  with the repo's own linter on those paths, not its repo-wide lint or fix command),
+  and never a test project that shares a database with another running fixer. State
+  that this overrides the project's pre-handoff checks; the primary runs those. Run the full
   lint, type-check, and test suites once yourself, after integration, and never
   two test runs at once.
 - Integrate changes before reviewing the combined result. Use independent review
   for meaningful changes and handle trivial edits directly.
 - Resolve missing context and scope dependencies in the primary agent, then resume
-  `runner`, `inspector`, `fixer`, or `general-purpose` with `SendMessage` and the
-  additional context. `Explore` and `Plan` cannot be resumed; start a new one.
+  `runner`, `inspector`, `consultant`, `fixer`, or `general-purpose` with
+  `SendMessage` and the additional context. `Explore` and `Plan` cannot be resumed;
+  start a new one. When a subagent returns partial, hits its turn limit, or returns
+  no report, resume it and ask it to report now from what it has, listing what it
+  did not verify. Do not restart it.
   Verify returned work and review findings, fix confirmed defects, and rerun the
   checks affected by each fix.
 
