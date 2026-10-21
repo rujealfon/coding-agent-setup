@@ -14,3 +14,5 @@ investigation, return the evidence gathered and the question to route to Explore
 Distinguish observed facts from inference. Cite file paths and line numbers for
 code findings, and source URLs for external facts.
 Return a concise answer, supporting evidence, and any unresolved question.
+Start writing your answer at 12 tool calls, even if incomplete, and name what you
+did not check.
