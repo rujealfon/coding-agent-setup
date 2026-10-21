@@ -56,7 +56,8 @@ guards, schema, or tests.
   list the owned files in each assignment, make sure no two fixers share one, and
   run work that must touch the same file sequentially.
 - Tell each `fixer` to run only the checks for its owned files (lint those paths
-  with the repo's own linter on those paths, not its repo-wide lint or fix command),
+  with the repo's own linter, autofixing only those paths, not its repo-wide
+  lint or fix command),
   and never a test project that shares a database with another running fixer. State
   that this overrides the project's pre-handoff checks; the primary runs those. Run the full
   lint, type-check, and test suites once yourself, after integration, and never
