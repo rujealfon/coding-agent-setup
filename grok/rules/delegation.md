@@ -11,7 +11,35 @@ and final verification in the primary agent.
 - Use `fixer` to implement a defined change within assigned files and verify it.
 - Use `inspector` for independent assessment of correctness, regressions, security
   issues, and missing validation. Supply its diff, baseline, and test results;
-  its read-only capability mode excludes edits and shell execution.
+  its read-only capability mode excludes edits and shell execution. Always review
+  these high-risk changes with `inspector`:
+  - migrations, including squashing or rewriting history
+  - authorization or permission changes
+  - authentication, session, token, or crypto changes
+  - tenant-isolation scoping
+  - payment or billing logic
+  - new or changed paths by which untrusted input reaches uploads,
+    deserialization, SQL, shell or template construction, redirects, or
+    server-side fetches of user-supplied URLs
+  - secrets, CI/CD, or infrastructure changes
+  - renames that reach the schema or stored codes
+  - removing routes or guards
+  - data deletion
+  - anything without a rollback
+
+  When unsure, treat a change as high-risk if a failure would be silent or
+  irreversible. Also escalate when a change needs deeper reasoning: concurrency,
+  ordering, or cache invalidation; large cross-module diffs; a fix for a bug that
+  two attempts have not fixed; or an `inspector` verdict that is uncertain or
+  disputed. For high-risk or deep-reasoning changes, escalate once, on the final
+  diff before the PR, without asking first, by running `chief-inspector`, the
+  reviewer at a higher reasoning effort. Run it in addition to the `inspector`
+  review while you iterate, because the costly pass should see only the settled
+  diff. Give it the diff, requirements, and
+  check results, but not the earlier `inspector`'s findings, so it reviews
+  independently. After fixing its findings, review the fix diff with the default
+  `inspector`; rerun the escalated review only if the fix itself is high-risk. A
+  user's approval of a plan does not replace review.
 - Use `consultant` before dependent implementation when architecture or design
   trade-offs remain unresolved, or when two evidence-based attempts have not fixed
   a difficult bug. Provide relevant context, constraints, options, and previous

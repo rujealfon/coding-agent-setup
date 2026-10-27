@@ -17,13 +17,34 @@ guards, schema, or tests.
 - Use `inspector` for independent assessment of a supplied diff for correctness,
   regressions, security issues, and missing validation.
   Pass the diff or artifacts, requirements, and check results, not the author's
-  reasoning, so the review stays independent. Always review high-risk changes with
-  the default inspector: migrations (including squashing or rewriting history),
-  authorization or permission changes, renames that reach the schema or stored
-  codes, removing routes or guards, data deletion, and anything without a rollback.
-  For those, recommend an `opus` inspector once, on the final diff before the PR,
-  and ask the user first, because Opus review is costly. A user's approval of a plan
-  does not replace review.
+  reasoning, so the review stays independent. Always review these high-risk
+  changes with the default inspector:
+  - migrations, including squashing or rewriting history
+  - authorization or permission changes
+  - authentication, session, token, or crypto changes
+  - tenant-isolation scoping
+  - payment or billing logic
+  - new or changed paths by which untrusted input reaches uploads,
+    deserialization, SQL, shell or template construction, redirects, or
+    server-side fetches of user-supplied URLs
+  - secrets, CI/CD, or infrastructure changes
+  - renames that reach the schema or stored codes
+  - removing routes or guards
+  - data deletion
+  - anything without a rollback
+
+  When unsure, treat a change as high-risk if a failure would be silent or
+  irreversible. Also escalate when a change needs deeper reasoning: concurrency,
+  ordering, or cache invalidation; large cross-module diffs; a fix for a bug that
+  two attempts have not fixed; or an `inspector` verdict that is uncertain or
+  disputed. For high-risk or deep-reasoning changes, run `chief-inspector`, the
+  reviewer on Opus, once, on the final diff before the PR, without asking first.
+  Run it in addition to `inspector`, which reviews while you iterate, because the
+  costly Opus pass should see only the settled diff. Give it the diff,
+  requirements, and check results, but not the earlier `inspector`'s findings, so
+  it reviews independently. After fixing its findings, review the fix diff with
+  `inspector`; rerun `chief-inspector` only if the fix itself is high-risk. A
+  user's approval of a plan does not replace review.
 - Use `consultant` before recommending on any architecture or design question: a
   choice between viable options, a data model, API, or integration decision, or a
   change that is hard to reverse, such as rewriting migration history or renaming
@@ -42,8 +63,8 @@ guards, schema, or tests.
   when no specialist fits. It can spawn agents, so tell it in the assignment not
   to delegate further.
 - Use each agent's configured model unless this policy names another. Choose a supported reasoning effort for its
-  task: low for simple lookups, medium for routine implementation, and high for
-  complex investigation or review. Respect explicit user requests for effort.
+  task: medium for lookups and routine implementation, and high for complex
+  investigation or review. Respect explicit user requests for effort.
 - Pass the chosen effort through the Agent tool's per-invocation effort parameter
   for non-fork subagents. Respect the `CLAUDE_CODE_EFFORT_LEVEL` environment
   override when set.
