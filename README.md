@@ -27,7 +27,7 @@ verifies the outcome. Each tool gets the crew members listed below.
 
 | Tool | `runner` | `fixer` | `inspector` | `consultant` | `tracker` | `default` | `explore` | `general` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
+| Codex | `gpt-6-luna` | `gpt-6.1-terra` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
 | Claude Code | `claude-haiku-5-5`, medium | `claude-sonnet-5-5`, medium | `claude-sonnet-5-5`, high | `claude-opus-5-5`, high | N/A | N/A | N/A | N/A |
 | OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max |
 | Grok Build | `grok-4.7`, low | `grok-4.7`, medium | `grok-4.7`, high | `grok-4.7`, xhigh | N/A | N/A | N/A | N/A |
@@ -225,7 +225,7 @@ directly.
 | Agent | Assignment | Configuration |
 | --- | --- | --- |
 | `runner` | Bounded factual lookup or file discovery with references | Luna; read-only sandbox |
-| `fixer` | Implement an agreed change within owned files and verify it | Sol; inherited permissions |
+| `fixer` | Implement an agreed change within owned files and verify it | Terra; inherited permissions |
 | `inspector` | Review a specified diff for concrete defects and explain their impact | Sol; read-only sandbox |
 | `consultant` | Advise on architecture, difficult trade-offs, and stubborn bugs | Astra; read-only sandbox |
 | `tracker` | Trace behavior, dependencies, and likely causes across files | Luna; read-only sandbox |
@@ -287,12 +287,32 @@ targets, with escalation for more demanding work:
 | `inspector` | Medium | High for complex or security-sensitive review |
 | `consultant` | Low for bounded advice | Medium or high for consequential unresolved decisions |
 
-Keep the configured model roster. A role consumes tokens when invoked; assigning
-Sol to multiple roles does not itself incur usage. Trial cheaper implementation
-models on bounded mechanical tasks before changing general implementation or
-review roles. Compare uncached input, cached input, output, elapsed time, findings,
-and corrective work on matched tasks. Different-task token totals do not establish
+The fixer trials GPT-6.1 Terra for defined changes, usually at medium effort.
+Keep Sol for the default and inspector roles, and Astra for consultation. Route
+complex implementation back to the primary agent for reassignment when Terra
+cannot complete it reliably. A role consumes tokens only when invoked. Compare
+uncached input, cached input, output, elapsed time, findings, and corrective work
+on matched tasks. Different-task token totals do not establish
 causal savings, and usage records are not a final bill.
+
+Run a local comparison from this checkout with an authenticated Codex CLI:
+
+```sh
+python3 tools/benchmark-fixer.py --dry-run
+python3 tools/benchmark-fixer.py --limit 1
+python3 tools/benchmark-fixer.py
+```
+
+The benchmark compares Terra and Sol at medium effort on five seeded regressions
+in the session-usage tool, each in a fresh temporary workspace. It runs the
+original regression tests after each attempt and records elapsed time, reported
+token usage, patches, and failures. It uses hosted models through your existing
+Codex login and consumes your account allowance. Results default to a temporary
+directory; pass `--output PATH` to retain them somewhere specific.
+This is a repeatable smoke benchmark for scoped fixes. Use matched real project
+tasks and independent diff review before drawing broader quality conclusions.
+[Initial local trial results](benchmarks/terra-sol-2026-10-28.md).
+[OpenAI model comparison guidance](https://learn.chatgpt.com/docs/model-selection)
 
 Use effort levels supported by the selected model.
 This is a choice made at spawn time. Omitting the field alone uses Codex's

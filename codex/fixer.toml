@@ -1,6 +1,6 @@
 name = "fixer"
 description = "Use to implement a defined change or fix within assigned files and run relevant checks. Return ambiguous requirements or cross-scope changes to the primary agent."
-model = "gpt-6.1-sol"
+model = "gpt-6.1-terra"
 developer_instructions = """
 Implement the assigned change within the specified files and acceptance criteria.
 Read the relevant project instructions and existing code before editing.
