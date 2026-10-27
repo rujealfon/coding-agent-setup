@@ -17,6 +17,7 @@ POLICIES = {
     ".grok/rules/delegation.md": "grok/rules/delegation.md",
 }
 PRE_DETECTIVE = json.loads((ROOT / "tests/fixtures/pre-detective-install.json").read_text())
+PRE_REVERT = json.loads((ROOT / "tests/fixtures/pre-revert-chief-inspector.json").read_text())
 LEGACY_POLICY = (ROOT / "tests/fixtures/shared-delegation.md").read_bytes()
 
 
@@ -28,7 +29,7 @@ class UninstallTests(unittest.TestCase):
         installed = self.run_command()
         self.assertEqual(installed.returncode, 0, installed.stderr)
         self.installed_files = [path for path in self.home.rglob("*") if path.is_file()]
-        self.assertEqual(len(self.installed_files), 27)
+        self.assertEqual(len(self.installed_files), 23)
 
     def test_codex_consultant_upgrade_backs_up_previous_files(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-codex.json").read_text())
@@ -63,6 +64,74 @@ class UninstallTests(unittest.TestCase):
         self.assertFalse(consultant.exists())
         self.assertEqual(config.read_bytes(), before[config])
         self.assertEqual(len(list(self.home.rglob("*.bak-*"))), 2)
+
+    def write_pre_revert_install(self):
+        for name, contents in PRE_REVERT.items():
+            target = self.home / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(contents)
+
+    def test_chief_inspector_release_updates_back_with_exact_backups(self):
+        self.write_pre_revert_install()
+        retired = [name for name in PRE_REVERT if "chief-inspector" in name]
+        self.assertEqual(len(retired), 4)
+        runner = ".claude/agents/runner.md"
+        replaced = {**{name: source for name, source in POLICIES.items()}, runner: "claude/runner.md"}
+        before = self.snapshot(self.home)
+
+        preview = self.run_command("--update", "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
+        self.assertEqual(list(self.home.rglob("*.bak-*")), [])
+
+        updated = self.run_command("--update")
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        for name in retired:
+            self.assertFalse((self.home / name).exists(), name)
+        for name, source in replaced.items():
+            self.assertEqual((self.home / name).read_bytes(), (ROOT / source).read_bytes(), name)
+        for name in [*retired, *replaced]:
+            installed = self.home / name
+            backups = list(installed.parent.glob(installed.name + ".bak-*"))
+            self.assertEqual(len(backups), 1, name)
+            self.assertEqual(backups[0].read_text(), PRE_REVERT[name], name)
+        self.assertEqual(len(list(self.home.rglob("*.bak-*"))), len(PRE_REVERT))
+
+    def test_customized_chief_inspector_blocks_update_without_mutation(self):
+        self.write_pre_revert_install()
+        custom = self.home / ".claude/agents/chief-inspector.md"
+        custom.write_text("my own chief inspector\n")
+        before = self.snapshot(self.home)
+
+        updated = self.run_command("--update")
+        self.assertEqual(updated.returncode, 1)
+        self.assertIn("Unrecognized existing instructions or agent", updated.stderr)
+        self.assertIn(str(custom), updated.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
+        self.assertEqual(list(self.home.rglob("*.bak-*")), [])
+
+    def test_tool_update_retires_only_that_tools_chief_inspector(self):
+        self.write_pre_revert_install()
+        updated = self.run_command("--tool", "claude", "--update")
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        retired = self.home / ".claude/agents/chief-inspector.md"
+        self.assertFalse(retired.exists())
+        backups = list(retired.parent.glob(retired.name + ".bak-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(), PRE_REVERT[".claude/agents/chief-inspector.md"])
+        for name, contents in PRE_REVERT.items():
+            if name.startswith(".claude/"):
+                continue
+            installed = self.home / name
+            self.assertEqual(installed.read_text(), contents, name)
+            self.assertEqual(list(installed.parent.glob(installed.name + ".bak-*")), [], name)
+
+    def test_uninstall_removes_chief_inspector_files(self):
+        self.write_pre_revert_install()
+        removed = self.run_command("--uninstall")
+        self.assertEqual(removed.returncode, 0, removed.stderr)
+        for name in PRE_REVERT:
+            self.assertFalse((self.home / name).exists(), name)
 
     def test_opencode_consultant_upgrade_backs_up_previous_files(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-opencode.json").read_text())
@@ -115,8 +184,7 @@ class UninstallTests(unittest.TestCase):
         for action in ("read", "glob", "grep", "webfetch", "websearch"):
             expected_permissions.extend((f"  - action: {action}", '    resource: "*"', '    effect: allow'))
         for agent, model in (("consultant", "glm-5.3-flash#max"),
-                             ("inspector", "deepseek-v4.1-flash#max"),
-                             ("chief-inspector", "glm-5.3-flash#max")):
+                             ("inspector", "deepseek-v4.1-flash#max")):
             with self.subTest(agent=agent):
                 installed = self.home / f".config/opencode/agents/{agent}.md"
                 self.assertEqual(installed.read_bytes(), (ROOT / f"opencode/{agent}.md").read_bytes())
@@ -125,22 +193,6 @@ class UninstallTests(unittest.TestCase):
                 self.assertIn("mode: subagent\n", frontmatter)
                 # Exact allowlist plus the deny-all rule excludes shell, edits, and subagents.
                 self.assertEqual(frontmatter.split("permissions:\n", 1)[1].splitlines(), expected_permissions)
-
-    def test_codex_chief_inspector_model_and_sandbox(self):
-        installed = (self.home / ".codex/agents/chief-inspector.toml").read_text()
-        self.assertIn('name = "chief-inspector"\n', installed)
-        self.assertIn('model = "gpt-6-astra"\n', installed)
-        self.assertIn('sandbox_mode = "read-only"\n', installed)
-        self.assertNotIn("reasoning_effort", installed)
-
-    def test_claude_chief_inspector_model_effort_and_turns(self):
-        installed = (self.home / ".claude/agents/chief-inspector.md").read_text()
-        self.assertEqual(installed, (ROOT / "claude/chief-inspector.md").read_text())
-        lines = installed.split("---\n", 2)[1].splitlines()
-        self.assertIn("name: chief-inspector", lines)
-        self.assertIn("model: claude-opus-5-5", lines)
-        self.assertIn("effort: high", lines)
-        self.assertIn("maxTurns: 60", lines)
 
     def test_customized_opencode_consultant_blocks_upgrade_without_mutation(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-opencode.json").read_text())
@@ -199,8 +251,7 @@ class UninstallTests(unittest.TestCase):
         })
 
     def test_grok_consultant_and_inspector_models_and_capabilities(self):
-        for agent, effort in (("consultant", "xhigh"), ("inspector", "high"),
-                              ("chief-inspector", "xhigh")):
+        for agent, effort in (("consultant", "xhigh"), ("inspector", "high")):
             with self.subTest(agent=agent):
                 installed = self.home / f".grok/agents/{agent}.md"
                 self.assertEqual(installed.read_bytes(), (ROOT / f"grok/{agent}.md").read_bytes())
@@ -435,7 +486,6 @@ class UninstallTests(unittest.TestCase):
             ".grok/agents/runner.md": "grok/runner.md",
             ".grok/agents/fixer.md": "grok/fixer.md",
             ".grok/agents/inspector.md": "grok/inspector.md",
-            ".grok/agents/chief-inspector.md": "grok/chief-inspector.md",
             ".grok/agents/consultant.md": "grok/consultant.md",
             ".grok/rules/delegation.md": "grok/rules/delegation.md",
         }
@@ -727,7 +777,6 @@ class UninstallTests(unittest.TestCase):
                 ".grok/agents/runner.md",
                 ".grok/agents/fixer.md",
                 ".grok/agents/inspector.md",
-                ".grok/agents/chief-inspector.md",
                 ".grok/agents/consultant.md",
                 ".grok/rules/delegation.md",
             },
@@ -741,7 +790,6 @@ class UninstallTests(unittest.TestCase):
             ".claude/agents/runner.md",
             ".claude/agents/fixer.md",
             ".claude/agents/inspector.md",
-            ".claude/agents/chief-inspector.md",
             ".claude/agents/consultant.md",
             ".claude/rules/delegation.md",
         }
@@ -793,7 +841,6 @@ class UninstallTests(unittest.TestCase):
                 ".grok/agents/runner.md",
                 ".grok/agents/fixer.md",
                 ".grok/agents/inspector.md",
-                ".grok/agents/chief-inspector.md",
                 ".grok/agents/consultant.md",
                 ".grok/rules/delegation.md",
             },
@@ -806,7 +853,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("Install scope", output)
         self.assertIn("Selected: all", output)
         self.assertGreaterEqual(output.count("●"), len(("codex", "claude", "opencode", "grok")) + 1)
-        self.assertEqual(len(self.installed_relative_paths(home)), 27)
+        self.assertEqual(len(self.installed_relative_paths(home)), 23)
 
     def test_interactive_update_confirms_the_highlighted_scope(self):
         before = {path: path.read_bytes() for path in self.installed_files}
@@ -830,7 +877,6 @@ class UninstallTests(unittest.TestCase):
                 ".config/opencode/agents/runner.md",
                 ".config/opencode/agents/fixer.md",
                 ".config/opencode/agents/inspector.md",
-                ".config/opencode/agents/chief-inspector.md",
                 ".config/opencode/agents/consultant.md",
                 ".config/opencode/opencode.jsonc",
                 ".config/opencode/AGENTS.md",
@@ -862,7 +908,6 @@ class UninstallTests(unittest.TestCase):
                 ".codex/agents/runner.toml",
                 ".codex/agents/fixer.toml",
                 ".codex/agents/inspector.toml",
-                ".codex/agents/chief-inspector.toml",
                 ".codex/agents/consultant.toml",
                 ".codex/agents/tracker.toml",
                 ".codex/agents/default.toml",
@@ -870,7 +915,6 @@ class UninstallTests(unittest.TestCase):
                 ".grok/agents/runner.md",
                 ".grok/agents/fixer.md",
                 ".grok/agents/inspector.md",
-                ".grok/agents/chief-inspector.md",
                 ".grok/agents/consultant.md",
                 ".grok/rules/delegation.md",
             },
@@ -884,7 +928,7 @@ class UninstallTests(unittest.TestCase):
         )
         self.assertEqual(returncode, 0, output)
         self.assertIn("Selected: all", output)
-        self.assertEqual(len(self.installed_relative_paths(home)), 27)
+        self.assertEqual(len(self.installed_relative_paths(home)), 23)
 
     def test_interactive_cancel_is_red_and_changes_nothing(self):
         home = self.fresh_home("interactive-cancel")
