@@ -60,6 +60,64 @@ class BenchmarkTests(unittest.TestCase):
                 self.assertEqual(json.loads((artifact / 'result.json').read_text()), result)
                 return result
 
+    def claude_run(self, events, exit_code=0):
+        def fake_execute(command, cwd, timeout, stdout, stderr):
+            self.assertEqual(set(benchmark.snapshot(cwd)), {benchmark.TARGET, benchmark.TEST, 'CLAUDE.md'})
+            self.assertEqual(command[0], 'claude')
+            self.assertEqual(command[command.index('--effort') + 1], 'medium')
+            for flag in ('--no-session-persistence', '--disable-slash-commands', '--verbose'):
+                self.assertIn(flag, command)
+            self.assertEqual(command[command.index('--setting-sources') + 1], 'project')
+            self.assertEqual(command[command.index('--permission-mode') + 1], 'acceptEdits')
+            self.assertEqual(command[command.index('--tools') + 1], 'Read,Edit,Write,Glob,Grep,Bash')
+            self.assertEqual(command[command.index('--disallowedTools') + 1], 'Agent')
+            self.assertNotIn('--bare', command)
+            self.assertIn('Bash(python3 *)', command[command.index('--allowedTools') + 1])
+            self.assertIn('do not edit tests or CLAUDE.md', command[2])
+            (cwd / benchmark.TARGET).write_bytes(b'repaired\n')
+            stdout.write_text(''.join(json.dumps(event) + '\n' for event in events))
+            stderr.write_text('')
+            return {'exit_code': exit_code, 'timed_out': False, 'error': None, 'duration_seconds': 1}
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.object(benchmark, 'execute', side_effect=fake_execute), patch.object(
+                    benchmark, 'evaluate', return_value={'exit_code': 0, 'timed_out': False, 'error': None}):
+                return benchmark.run_model('claude-opus-5-5', benchmark.MUTATIONS[0], b'broken\n', b'tests',
+                                           b'Do not delegate', Path(temporary) / 'run', 180, provider='claude')
+
+    def test_claude_usage_comes_from_result_event(self):
+        result = self.claude_run([{'type': 'assistant', 'usage': {'input_tokens': 1}},
+                                  {'type': 'result', 'is_error': False, 'usage': {'input_tokens': 7}}])
+        self.assertEqual(result['status'], 'passed')
+        self.assertEqual(result['usage'], [{'input_tokens': 7}])
+        self.assertEqual(result['provider'], 'claude')
+
+    def test_claude_error_or_missing_result_is_infrastructure_error(self):
+        for events in ([{'type': 'result', 'is_error': True, 'usage': {'input_tokens': 7}}],
+                       [{'type': 'assistant', 'usage': {'input_tokens': 1}}]):
+            with self.subTest(events=events):
+                self.assertEqual(self.claude_run(events)['status'], 'infrastructure_error')
+
+    def test_claude_dry_run_never_starts_model_and_alternates_claude_models(self):
+        models = benchmark.PROVIDER_MODELS['claude']
+        self.assertEqual(models, ('claude-sonnet-5-5', 'claude-opus-5-5'))
+        with tempfile.TemporaryDirectory() as temporary:
+            for dry_run in (True, False):
+                with self.subTest(dry_run=dry_run), patch.object(benchmark, 'evaluate', side_effect=[
+                        {'exit_code': 0, 'error': None, 'timed_out': False}] + [
+                        {'exit_code': 1, 'error': None, 'timed_out': False}] * 5), patch.object(
+                        benchmark, 'run_model', return_value={'status': 'passed', 'task': 't',
+                                                             'model': 'm', 'duration_seconds': 0, 'usage': []}) as run:
+                    args = ['--provider', 'claude', '--output', str(Path(temporary) / str(dry_run)), '--limit', '2']
+                    benchmark.main(args + (['--dry-run'] if dry_run else []))
+                    summary = json.loads((Path(temporary) / str(dry_run) / 'summary.json').read_text())
+                    self.assertEqual(summary['provider'], 'claude')
+                    if dry_run:
+                        run.assert_not_called()
+                    else:
+                        self.assertEqual([call.args[0] for call in run.call_args_list],
+                                         [*models, *reversed(models)])
+                        self.assertEqual({call.kwargs['provider'] for call in run.call_args_list}, {'claude'})
+
     def test_success_records_usage_and_patch(self):
         result = self.model_run()
         self.assertEqual(result['status'], 'passed')

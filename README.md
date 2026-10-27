@@ -295,7 +295,8 @@ uncached input, cached input, output, elapsed time, findings, and corrective wor
 on matched tasks. Different-task token totals do not establish
 causal savings, and usage records are not a final bill.
 
-Run a local comparison from this checkout with an authenticated Codex CLI:
+Run a local comparison from this checkout with an authenticated Codex CLI (add
+`--provider claude` to compare Claude Code models with your Claude login instead):
 
 ```sh
 python3 tools/benchmark-fixer.py --dry-run
@@ -309,6 +310,20 @@ original regression tests after each attempt and records elapsed time, reported
 token usage, patches, and failures. It uses hosted models through your existing
 Codex login and consumes your account allowance. Results default to a temporary
 directory; pass `--output PATH` to retain them somewhere specific.
+```sh
+python3 tools/benchmark-fixer.py --provider claude --dry-run
+python3 tools/benchmark-fixer.py --provider claude --limit 1
+python3 tools/benchmark-fixer.py --provider claude
+```
+
+With `--provider claude` it compares Sonnet 5.5 and Opus 5.5 at medium effort
+on the same five regressions, using `claude -p` with the body of `claude/fixer.md`
+written to the workspace as `CLAUDE.md`. Claude Code has no workspace-write
+sandbox, so isolation relies on a temporary directory plus a restricted tool list
+(Read, Edit, Write, Glob, Grep, and python3 through Bash; Agent disallowed).
+Usage is taken from the final `result` event.
+[Initial Claude trial results](benchmarks/sonnet-opus-2026-10-28.md).
+
 This is a repeatable smoke benchmark for scoped fixes. Use matched real project
 tasks and independent diff review before drawing broader quality conclusions.
 [Initial local trial results](benchmarks/terra-sol-2026-10-28.md).
