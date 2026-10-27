@@ -216,5 +216,8 @@
   ],
   ".grok/agents/chief-inspector.md": [
     "0d6503812573b33dd7ef78d4266090b35a8762fc18fbc587e59d5bd555c1ae82"
+  ],
+  ".codex/agents/fixer.toml": [
+    "b3651da06b8c7dd6816c2b57ab41d53095b236346e06f5245e1a1b5327b38ceb"
   ]
 }
