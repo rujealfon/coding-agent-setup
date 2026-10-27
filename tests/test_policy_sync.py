@@ -62,14 +62,17 @@ def high_risk_items(relative):
         line = lines[start - 1]
         marker = re.match(r"^(\s+)- ", line)
         if marker:
-            item_indent = len(marker.group(1))
-        elif item_indent is not None and not (
-            line.strip() and len(line) - len(line.lstrip()) > item_indent
+            if item_indent is None:
+                item_indent = len(marker.group(1))
+            elif len(marker.group(1)) != item_indent:
+                raise AssertionError(f"{relative}: high-risk list mixes item indents")
+        elif not re.match(r"^\s+\S", line) or (
+            item_indent is not None and len(line) - len(line.lstrip()) <= item_indent
         ):
             break
-        elif item_indent is None and not re.match(r"^\s+\S", line):
-            break
         start -= 1
+    if item_indent is None:
+        raise AssertionError(f"{relative}: no nested high-risk list found")
     items = []
     for line in lines[start:end]:
         marker = re.match(r"^(\s+)- (.*)", line)
@@ -99,7 +102,11 @@ def without_intended_differences(lines, drop_preamble):
         start = next(
             (i for i, line in enumerate(lines) if line.startswith(PREAMBLE_START)), None
         )
-        if start is None or not lines[start + 2].startswith(PREAMBLE_END):
+        if (
+            start is None
+            or start + 2 >= len(lines)
+            or not lines[start + 2].startswith(PREAMBLE_END)
+        ):
             raise AssertionError("independence preamble not found")
         del lines[start : start + 3]
     return lines
@@ -108,6 +115,9 @@ def without_intended_differences(lines, drop_preamble):
 class PolicySyncTests(unittest.TestCase):
     def test_high_risk_lists_are_identical(self):
         reference = high_risk_items(POLICIES[0])
+        # Guard against all four lists being truncated the same way.
+        self.assertTrue(reference[0].startswith("migrations"), reference[0])
+        self.assertEqual(reference[-1], "anything without a rollback")
         for relative in POLICIES[1:]:
             items = high_risk_items(relative)
             diff = "\n".join(
