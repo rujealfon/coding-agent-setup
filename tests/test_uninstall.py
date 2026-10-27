@@ -76,7 +76,10 @@ class UninstallTests(unittest.TestCase):
         retired = [name for name in PRE_REVERT if "chief-inspector" in name]
         self.assertEqual(len(retired), 4)
         runner = ".claude/agents/runner.md"
-        replaced = {**{name: source for name, source in POLICIES.items()}, runner: "claude/runner.md"}
+        sources = {**POLICIES, runner: "claude/runner.md"}
+        # A file whose current source matches the old release is left in place without a backup.
+        replaced = {name: source for name, source in sources.items() if (ROOT / source).read_text() != PRE_REVERT[name]}
+        unchanged = [name for name in sources if name not in replaced]
         before = self.snapshot(self.home)
 
         preview = self.run_command("--update", "--dry-run")
@@ -95,7 +98,9 @@ class UninstallTests(unittest.TestCase):
             backups = list(installed.parent.glob(installed.name + ".bak-*"))
             self.assertEqual(len(backups), 1, name)
             self.assertEqual(backups[0].read_text(), PRE_REVERT[name], name)
-        self.assertEqual(len(list(self.home.rglob("*.bak-*"))), len(PRE_REVERT))
+        for name in unchanged:
+            self.assertEqual((self.home / name).read_text(), PRE_REVERT[name], name)
+        self.assertEqual(len(list(self.home.rglob("*.bak-*"))), len(retired) + len(replaced))
 
     def test_customized_chief_inspector_blocks_update_without_mutation(self):
         self.write_pre_revert_install()
