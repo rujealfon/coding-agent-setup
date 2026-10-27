@@ -137,28 +137,12 @@ cannot spawn further subagents through Agent. Runner, inspector, and consultant 
 inspection tool lists, which also exclude shell, edits, and MCP tools. Send work
 requiring those tools to the primary agent or a suitably scoped fixer.
 The four custom agents have configured model and effort defaults. High-risk
-changes always get a review from the default Inspector. The riskiest of them are
-the Opus types:
-
-- migrations, including squashing or rewriting history
-- authentication or authorization changes, including sessions, tokens, and crypto
-- tenant-isolation scoping
-- payment, billing, or financial record logic (balances, fund allocations,
-  closed-period locks)
-- changes to how audit entries are written or which fields they record, not
-  features that only add an entry through the existing mechanism
-- changes to how sensitive or personal data is encrypted, masked, or revealed, or
-  new paths that could copy it into logs, errors, or audit entries
-- data deletion
-
-Renames that reach the schema or stored codes, removed routes or guards, and
-anything without a rollback are also high-risk. For the Opus types, the delegation
-policy also has the primary agent run one Opus Inspector review at medium effort, without asking first, on the settled diff
-before the PR or final handoff. It gets the diff, requirements, and check results
-but not the default Inspector's findings. The default Inspector reviews the fixes
-it prompts, with another Opus pass only if a fix itself falls in those types, and
-the primary agent reports that the Opus review ran. Approving a plan does not
-replace review. Other custom agents use their configured models.
+changes always get a review from the default Inspector. For the riskiest of them,
+the Opus types, the primary agent also runs one Opus Inspector review at medium
+effort without asking first. [claude/docs/opus-review.md](claude/docs/opus-review.md)
+lists the Opus types and the review steps; the delegation rule names the types
+and points there, so the steps load only when a diff needs them. Approving a plan
+does not replace review. Other custom agents use their configured models.
 
 Claude's policy consults before recommending on architecture or design questions,
 including data models, APIs, integrations, and hard-to-reverse choices, except
@@ -372,6 +356,9 @@ Installed paths are unchanged. Run `npx @rujealfon/coding-agent-setup --update` 
 recognized shared policies with the provider-specific versions and retain backups.
 Customized instructions still stop the update before any files are changed.
 
+Claude's Opus review steps install into `~/.claude/docs/opus-review.md`, outside
+`~/.claude/rules/`, so they load only when the delegation rule points to them.
+
 Agent definitions install into `~/.codex/agents/`, `~/.claude/agents/`,
 `~/.config/opencode/agents/`, and `~/.grok/agents/`, respectively. OpenCode's
 built-in role overrides also install into `~/.config/opencode/opencode.jsonc`.
@@ -543,6 +530,8 @@ coding-agent-setup/
 │   └── tracker.toml
 ├── claude/
 │   ├── consultant.md
+│   ├── docs/
+│   │   └── opus-review.md
 │   ├── fixer.md
 │   ├── inspector.md
 │   ├── runner.md
@@ -591,6 +580,7 @@ coding-agent-setup/
 | `grok/*.md` | Grok Build agent definitions |
 | `codex/AGENTS.md`, `opencode/AGENTS.md` | Provider-specific global delegation instructions |
 | `claude/rules/delegation.md`, `grok/rules/delegation.md` | Provider-specific global delegation rules |
+| `claude/docs/opus-review.md` | Claude's Opus review types and steps, reached from its delegation rule |
 | `package.json` | npm package `@rujealfon/coding-agent-setup` |
 | `bin/coding-agent-setup` | `npx` entry point that runs `install-agents.py` |
 | `install-agents.py` | Combined installer and uninstaller for all four tools, or a selected combination |

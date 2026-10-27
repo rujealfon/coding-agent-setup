@@ -29,7 +29,7 @@ class UninstallTests(unittest.TestCase):
         installed = self.run_command()
         self.assertEqual(installed.returncode, 0, installed.stderr)
         self.installed_files = [path for path in self.home.rglob("*") if path.is_file()]
-        self.assertEqual(len(self.installed_files), 23)
+        self.assertEqual(len(self.installed_files), 24)
 
     def test_codex_consultant_upgrade_backs_up_previous_files(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-codex.json").read_text())
@@ -797,6 +797,7 @@ class UninstallTests(unittest.TestCase):
             ".claude/agents/inspector.md",
             ".claude/agents/consultant.md",
             ".claude/rules/delegation.md",
+            ".claude/docs/opus-review.md",
         }
         self.assertEqual(self.installed_relative_paths(self.home), before - removed)
         self.assertTrue((self.home / ".codex/agents/runner.toml").is_file())
@@ -858,7 +859,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("Install scope", output)
         self.assertIn("Selected: all", output)
         self.assertGreaterEqual(output.count("●"), len(("codex", "claude", "opencode", "grok")) + 1)
-        self.assertEqual(len(self.installed_relative_paths(home)), 23)
+        self.assertEqual(len(self.installed_relative_paths(home)), 24)
 
     def test_interactive_update_confirms_the_highlighted_scope(self):
         before = {path: path.read_bytes() for path in self.installed_files}
@@ -933,7 +934,7 @@ class UninstallTests(unittest.TestCase):
         )
         self.assertEqual(returncode, 0, output)
         self.assertIn("Selected: all", output)
-        self.assertEqual(len(self.installed_relative_paths(home)), 23)
+        self.assertEqual(len(self.installed_relative_paths(home)), 24)
 
     def test_interactive_cancel_is_red_and_changes_nothing(self):
         home = self.fresh_home("interactive-cancel")

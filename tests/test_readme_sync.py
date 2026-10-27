@@ -1,0 +1,151 @@
+import re
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+AGENTS = ("runner", "fixer", "inspector", "consultant")
+OPUS_DOC_SOURCE = "claude/docs/opus-review.md"
+OPUS_DOC_TARGET = ".claude/docs/opus-review.md"
+OPUS_DOC_POINTER = "~/.claude/docs/opus-review.md"
+
+
+def read(relative):
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def parse_frontmatter(text, name):
+    lines = text.splitlines()
+    assert lines and lines[0].strip() == "---", f"{name}: missing opening ---"
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    assert end is not None, f"{name}: missing closing ---"
+    fields = {}
+    for line in lines[1:end]:
+        key, sep, value = line.partition(":")
+        if sep:
+            fields[key.strip()] = value.strip()
+    return fields
+
+
+def agent_settings():
+    settings = {}
+    for agent in AGENTS:
+        name = f"claude/{agent}.md"
+        fields = parse_frontmatter(read(name), name)
+        for key in ("model", "effort"):
+            assert fields.get(key), f"{name}: frontmatter has no {key}"
+        settings[agent] = (fields["model"], fields["effort"])
+    return settings
+
+
+def split_row(line):
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def display_name(model):
+    match = re.fullmatch(r"claude-([a-z]+)-(\d+(?:-\d+)*)", model)
+    assert match, f"unrecognized Claude model id: {model!r}"
+    return f"{match.group(1).capitalize()} {match.group(2).replace('-', '.')}"
+
+
+def model_table_settings(readme):
+    """Return {agent: (model, effort)} from the Claude Code row of the model table."""
+    lines = readme.splitlines()
+    header_idx = [
+        i for i, line in enumerate(lines)
+        if line.startswith("|") and all(f"`{a}`" in line for a in AGENTS)
+    ]
+    assert len(header_idx) == 1, (
+        f"README.md: expected exactly one model table header with {AGENTS}, found {len(header_idx)}"
+    )
+    header = split_row(lines[header_idx[0]])
+    rows = []
+    for line in lines[header_idx[0] + 1:]:
+        if not line.startswith("|"):
+            break
+        rows.append(line)
+    claude_rows = [r for r in rows if r.startswith("| Claude Code |")]
+    assert len(claude_rows) == 1, "README.md: expected exactly one '| Claude Code |' model row"
+    cells = split_row(claude_rows[0])
+    assert len(cells) == len(header), "README.md: Claude Code row column count differs from header"
+    result = {}
+    for agent in AGENTS:
+        assert f"`{agent}`" in header, f"README.md: model table lacks column `{agent}`"
+        cell = cells[header.index(f"`{agent}`")]
+        match = re.fullmatch(r"`([^`]+)`,\s*(\w+)", cell)
+        assert match, f"README.md: model table cell for {agent} not like '`model`, effort': {cell!r}"
+        result[agent] = (match.group(1), match.group(2))
+    return result
+
+
+def role_table_configs(readme):
+    """Return {agent: configuration cell} from the table under the Claude orchestration heading."""
+    lines = readme.splitlines()
+    heading = [i for i, line in enumerate(lines) if line.strip() == "### Claude orchestration"]
+    assert len(heading) == 1, "README.md: expected exactly one '### Claude orchestration' heading"
+    header = None
+    for i in range(heading[0] + 1, len(lines)):
+        if lines[i].startswith("#"):
+            break
+        if lines[i].startswith("| Agent |"):
+            header = i
+            break
+    assert header is not None, "README.md: no role table under '### Claude orchestration'"
+    assert split_row(lines[header]) == ["Agent", "Assignment", "Configuration"], (
+        f"README.md: Claude role table header changed: {lines[header]!r}"
+    )
+    configs = {}
+    for line in lines[header + 2:]:
+        if not line.startswith("|"):
+            break
+        cells = split_row(line)
+        assert len(cells) == 3, f"README.md: malformed Claude role row: {line!r}"
+        match = re.fullmatch(r"`(\w+)`", cells[0])
+        if match and match.group(1) in AGENTS:
+            assert match.group(1) not in configs, f"README.md: duplicate Claude role row {cells[0]}"
+            configs[match.group(1)] = cells[2]
+    assert sorted(configs) == sorted(AGENTS), (
+        f"README.md: Claude role table has agents {sorted(configs)}, expected {sorted(AGENTS)}"
+    )
+    return configs
+
+
+class ReadmeSyncTests(unittest.TestCase):
+    def test_model_table_matches_agent_files(self):
+        table = model_table_settings(read("README.md"))
+        self.assertEqual(sorted(table), sorted(AGENTS))
+        for agent, expected in agent_settings().items():
+            self.assertEqual(
+                table[agent], expected,
+                f"README.md model table for {agent} is {table[agent]}, claude/{agent}.md says {expected}",
+            )
+
+    def test_role_table_matches_agent_files(self):
+        configs = role_table_configs(read("README.md"))
+        for agent, (model, effort) in agent_settings().items():
+            prefix = f"{display_name(model)}, {effort}"
+            self.assertTrue(
+                configs[agent].startswith(prefix),
+                f"README.md Claude role table for {agent} is {configs[agent]!r}, "
+                f"claude/{agent}.md expects it to start with {prefix!r}",
+            )
+
+    def test_opus_review_doc_is_wired(self):
+        self.assertIn(
+            OPUS_DOC_POINTER, read("claude/rules/delegation.md"),
+            f"claude/rules/delegation.md no longer mentions {OPUS_DOC_POINTER}",
+        )
+        self.assertTrue((ROOT / OPUS_DOC_SOURCE).is_file(), f"{OPUS_DOC_SOURCE} is missing")
+        self.assertIn(OPUS_DOC_SOURCE, read("README.md"), f"README.md no longer links {OPUS_DOC_SOURCE}")
+        installer = read("install-agents.py")
+        start = installer.index("files = [")
+        end = installer.index("\n    ]", start)
+        pairs = re.findall(r'\(\s*"([^"]+)",\s*"([^"]+)"\s*\),', installer[start:end])
+        self.assertGreater(len(pairs), 4, "install-agents.py: could not parse the files list")
+        self.assertIn(
+            (OPUS_DOC_SOURCE, OPUS_DOC_TARGET), pairs,
+            f"install-agents.py does not map {OPUS_DOC_SOURCE} to {OPUS_DOC_TARGET}",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

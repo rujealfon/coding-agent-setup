@@ -7,7 +7,8 @@ improves speed or quality. Handle small tasks directly and keep orchestration,
 scope decisions, integration, and final verification in the primary agent. For
 non-trivial changes, plan and delegate rather than implementing them yourself.
 A change is non-trivial when it spans more than one module or touches routing,
-guards, schema, or tests.
+guards, schema, or tests. Short wording edits the user dictates, and wording
+fixes that make no claim about code, are small tasks.
 
 - Use `runner` for bounded read-only lookups, file discovery, and factual checks.
 - Use the built-in `Explore` agent for tracing behavior across the codebase and
@@ -19,28 +20,14 @@ guards, schema, or tests.
   Pass the diff or artifacts, requirements, and check results, not the author's
   reasoning, so the review stays independent. Always review high-risk changes with
   the default inspector: renames that reach the schema or stored codes, removing
-  routes or guards, anything without a rollback, and these Opus types:
-  - migrations, including squashing or rewriting history
-  - authentication or authorization changes, including sessions, tokens, and
-    crypto
-  - tenant-isolation scoping
-  - payment, billing, or financial record logic (balances, fund allocations,
-    closed-period locks)
-  - changes to how audit entries are written or which fields they record, not
-    features that only add an entry through the existing mechanism
-  - changes to how sensitive or personal data is encrypted, masked, or revealed,
-    or new paths that could copy it into logs, errors, or audit entries
-  - data deletion
-
-  For the Opus types, also run one Opus review without asking the user: spawn
-  `inspector` with the Agent tool's `model: "opus"` override at medium effort, on
-  the settled diff before the PR or final handoff. Use the default inspector while
-  iterating, so the costly pass sees only the final diff. Give the Opus inspector the diff,
-  requirements, and check results, but not the earlier inspector's findings.
-  After fixing its findings, review the fix diff with the default inspector, and
-  rerun the Opus review only if the fix itself falls in those Opus types. Report
-  in your summary that the Opus review ran and what it found. A user's approval of
-  a plan does not replace review.
+  routes or guards, anything without a rollback, and the Opus types (migrations,
+  authentication or authorization, tenant isolation, payment, billing, or
+  financial records, changes to how audit entries are written but not features
+  that only add one, changes to how sensitive data is encrypted, masked, or
+  revealed or new paths that could leak it, and data deletion). When a diff
+  touches an Opus type, read `~/.claude/docs/opus-review.md` and run the Opus
+  review it describes. A user's
+  approval of a plan does not replace review.
 - Use `consultant` before recommending on any architecture or design question: a
   choice between viable options, a data model, API, or integration decision, or a
   change that is hard to reverse, such as rewriting migration history or renaming
