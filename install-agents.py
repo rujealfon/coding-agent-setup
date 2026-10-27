@@ -207,6 +207,7 @@ def main():
         ("claude/inspector.md", ".claude/agents/inspector.md"),
         ("claude/consultant.md", ".claude/agents/consultant.md"),
         ("claude/rules/delegation.md", ".claude/rules/delegation.md"),
+        ("claude/docs/opus-review.md", ".claude/docs/opus-review.md"),
         ("opencode/runner.md", ".config/opencode/agents/runner.md"),
         ("opencode/fixer.md", ".config/opencode/agents/fixer.md"),
         ("opencode/inspector.md", ".config/opencode/agents/inspector.md"),

@@ -29,7 +29,7 @@ class UninstallTests(unittest.TestCase):
         installed = self.run_command()
         self.assertEqual(installed.returncode, 0, installed.stderr)
         self.installed_files = [path for path in self.home.rglob("*") if path.is_file()]
-        self.assertEqual(len(self.installed_files), 23)
+        self.assertEqual(len(self.installed_files), 24)
 
     def test_codex_consultant_upgrade_backs_up_previous_files(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-codex.json").read_text())
@@ -76,7 +76,10 @@ class UninstallTests(unittest.TestCase):
         retired = [name for name in PRE_REVERT if "chief-inspector" in name]
         self.assertEqual(len(retired), 4)
         runner = ".claude/agents/runner.md"
-        replaced = {**{name: source for name, source in POLICIES.items()}, runner: "claude/runner.md"}
+        sources = {**POLICIES, runner: "claude/runner.md"}
+        # A file whose current source matches the old release is left in place without a backup.
+        replaced = {name: source for name, source in sources.items() if (ROOT / source).read_text() != PRE_REVERT[name]}
+        unchanged = [name for name in sources if name not in replaced]
         before = self.snapshot(self.home)
 
         preview = self.run_command("--update", "--dry-run")
@@ -95,7 +98,9 @@ class UninstallTests(unittest.TestCase):
             backups = list(installed.parent.glob(installed.name + ".bak-*"))
             self.assertEqual(len(backups), 1, name)
             self.assertEqual(backups[0].read_text(), PRE_REVERT[name], name)
-        self.assertEqual(len(list(self.home.rglob("*.bak-*"))), len(PRE_REVERT))
+        for name in unchanged:
+            self.assertEqual((self.home / name).read_text(), PRE_REVERT[name], name)
+        self.assertEqual(len(list(self.home.rglob("*.bak-*"))), len(retired) + len(replaced))
 
     def test_customized_chief_inspector_blocks_update_without_mutation(self):
         self.write_pre_revert_install()
@@ -792,6 +797,7 @@ class UninstallTests(unittest.TestCase):
             ".claude/agents/inspector.md",
             ".claude/agents/consultant.md",
             ".claude/rules/delegation.md",
+            ".claude/docs/opus-review.md",
         }
         self.assertEqual(self.installed_relative_paths(self.home), before - removed)
         self.assertTrue((self.home / ".codex/agents/runner.toml").is_file())
@@ -853,7 +859,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("Install scope", output)
         self.assertIn("Selected: all", output)
         self.assertGreaterEqual(output.count("●"), len(("codex", "claude", "opencode", "grok")) + 1)
-        self.assertEqual(len(self.installed_relative_paths(home)), 23)
+        self.assertEqual(len(self.installed_relative_paths(home)), 24)
 
     def test_interactive_update_confirms_the_highlighted_scope(self):
         before = {path: path.read_bytes() for path in self.installed_files}
@@ -928,7 +934,7 @@ class UninstallTests(unittest.TestCase):
         )
         self.assertEqual(returncode, 0, output)
         self.assertIn("Selected: all", output)
-        self.assertEqual(len(self.installed_relative_paths(home)), 23)
+        self.assertEqual(len(self.installed_relative_paths(home)), 24)
 
     def test_interactive_cancel_is_red_and_changes_nothing(self):
         home = self.fresh_home("interactive-cancel")

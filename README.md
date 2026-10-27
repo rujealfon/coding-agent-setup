@@ -28,7 +28,7 @@ verifies the outcome. Each tool gets the crew members listed below.
 | Tool | `runner` | `fixer` | `inspector` | `consultant` | `tracker` | `default` | `explore` | `general` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Codex | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6-luna` | `gpt-6.1-sol` | N/A | N/A |
-| Claude Code | `claude-haiku-5-5`, low | `claude-sonnet-5-5`, medium | `claude-sonnet-5-5`, high | `claude-opus-5-5`, high | N/A | N/A | N/A | N/A |
+| Claude Code | `claude-haiku-5-5`, medium | `claude-sonnet-5-5`, medium | `claude-sonnet-5-5`, high | `claude-opus-5-5`, high | N/A | N/A | N/A | N/A |
 | OpenCode | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/deepseek-v4.1-flash`, max | `opencode-go/glm-5.3-flash`, max | N/A | N/A | `opencode-go/muse-spark-1.3-contributor`, high | `opencode-go/deepseek-v4.1-flash`, max |
 | Grok Build | `grok-4.7`, low | `grok-4.7`, medium | `grok-4.7`, high | `grok-4.7`, xhigh | N/A | N/A | N/A | N/A |
 
@@ -42,8 +42,8 @@ verifies the outcome. Each tool gets the crew members listed below.
 - `general` is OpenCode's built-in subagent for bounded mixed investigation and implementation when no specialist fits. Prefer Fixer for a defined change and Explore for tracing.
 
 N/A means this setup does not provide that role for the tool. The model table
-shows configured defaults; Claude Inspector can escalate to Opus for high-risk
-reviews, with your approval, as described below.
+shows configured defaults; Claude Inspector escalates to Opus for the riskiest
+change types, as described below.
 
 Each provider has its own delegation policy. Those policies route deeper
 investigation to Codex `tracker`, OpenCode
@@ -97,7 +97,7 @@ scope decisions, integration, and final verification in the primary conversation
 
 | Agent | Assignment | Configuration |
 | --- | --- | --- |
-| `runner` | Bounded factual lookup or file discovery with references | Haiku 5.5, low; max 15 turns, reports from 12 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
+| `runner` | Bounded factual lookup or file discovery with references | Haiku 5.5, medium; max 15 turns, reports from 12 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
 | `fixer` | Implement an agreed change within owned files and verify it | Sonnet 5.5, medium; no turn limit; inherited tools, including shell, editing, skills, and MCP; Agent disabled |
 | `inspector` | Review a supplied diff for concrete defects and explain their impact | Sonnet 5.5, high; max 60 turns, reports from 50 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
 | `consultant` | Advise on architecture, design trade-offs, and stubborn bugs; use sparingly | Opus 5.5, high; max 30 turns, reports from 24 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
@@ -137,13 +137,12 @@ cannot spawn further subagents through Agent. Runner, inspector, and consultant 
 inspection tool lists, which also exclude shell, edits, and MCP tools. Send work
 requiring those tools to the primary agent or a suitably scoped fixer.
 The four custom agents have configured model and effort defaults. High-risk
-changes (migrations, including squashing or rewriting history; authorization or
-permission changes; renames that reach the schema or stored codes; removed routes
-or guards; data deletion; or anything without a rollback) always get a review from
-the default Inspector. For those, the delegation policy has the primary agent
-recommend an `opus` Inspector once, on the final diff before the PR, and ask first
-because Opus review is costly. Approving a plan does not replace review. Other
-custom agents use their configured models.
+changes always get a review from the default Inspector. For the riskiest of them,
+the Opus types, the primary agent also runs one Opus Inspector review at medium
+effort without asking first. [claude/docs/opus-review.md](claude/docs/opus-review.md)
+lists the Opus types and the review steps; the delegation rule names the types
+and points there, so the steps load only when a diff needs them. Approving a plan
+does not replace review. Other custom agents use their configured models.
 
 Claude's policy consults before recommending on architecture or design questions,
 including data models, APIs, integrations, and hard-to-reverse choices, except
@@ -308,8 +307,8 @@ when no effort is selected at spawn time, remove
 `default_subagent_reasoning_effort` from its `[agents]` table. Explicit spawn
 effort takes precedence over that global default either way.
 
-Claude agent files set a default `effort` in their frontmatter: low for `runner`,
-medium for `fixer`, and high for `inspector` and `consultant`. The delegation
+Claude agent files set a default `effort` in their frontmatter: medium for `runner`
+and `fixer`, and high for `inspector` and `consultant`. The delegation
 policy also asks the primary agent to pass a supported effort level through the
 Agent tool for each non-fork subagent invocation: low for simple lookups, medium
 for routine implementation, and high for complex investigation or review.
@@ -356,6 +355,9 @@ The former root `delegation.md` has been replaced by these four source files.
 Installed paths are unchanged. Run `npx @rujealfon/coding-agent-setup --update` to replace
 recognized shared policies with the provider-specific versions and retain backups.
 Customized instructions still stop the update before any files are changed.
+
+Claude's Opus review steps install into `~/.claude/docs/opus-review.md`, outside
+`~/.claude/rules/`, so they load only when the delegation rule points to them.
 
 Agent definitions install into `~/.codex/agents/`, `~/.claude/agents/`,
 `~/.config/opencode/agents/`, and `~/.grok/agents/`, respectively. OpenCode's
@@ -528,6 +530,8 @@ coding-agent-setup/
 │   └── tracker.toml
 ├── claude/
 │   ├── consultant.md
+│   ├── docs/
+│   │   └── opus-review.md
 │   ├── fixer.md
 │   ├── inspector.md
 │   ├── runner.md
@@ -576,6 +580,7 @@ coding-agent-setup/
 | `grok/*.md` | Grok Build agent definitions |
 | `codex/AGENTS.md`, `opencode/AGENTS.md` | Provider-specific global delegation instructions |
 | `claude/rules/delegation.md`, `grok/rules/delegation.md` | Provider-specific global delegation rules |
+| `claude/docs/opus-review.md` | Claude's Opus review types and steps, reached from its delegation rule |
 | `package.json` | npm package `@rujealfon/coding-agent-setup` |
 | `bin/coding-agent-setup` | `npx` entry point that runs `install-agents.py` |
 | `install-agents.py` | Combined installer and uninstaller for all four tools, or a selected combination |

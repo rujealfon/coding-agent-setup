@@ -7,7 +7,8 @@ improves speed or quality. Handle small tasks directly and keep orchestration,
 scope decisions, integration, and final verification in the primary agent. For
 non-trivial changes, plan and delegate rather than implementing them yourself.
 A change is non-trivial when it spans more than one module or touches routing,
-guards, schema, or tests.
+guards, schema, or tests. Short wording edits the user dictates, and wording
+fixes that make no claim about code, are small tasks.
 
 - Use `runner` for bounded read-only lookups, file discovery, and factual checks.
 - Use the built-in `Explore` agent for tracing behavior across the codebase and
@@ -18,19 +19,24 @@ guards, schema, or tests.
   regressions, security issues, and missing validation.
   Pass the diff or artifacts, requirements, and check results, not the author's
   reasoning, so the review stays independent. Always review high-risk changes with
-  the default inspector: migrations (including squashing or rewriting history),
-  authorization or permission changes, renames that reach the schema or stored
-  codes, removing routes or guards, data deletion, and anything without a rollback.
-  For those, recommend an `opus` inspector once, on the final diff before the PR,
-  and ask the user first, because Opus review is costly. A user's approval of a plan
-  does not replace review.
+  the default inspector: renames that reach the schema or stored codes, removing
+  routes or guards, anything without a rollback, and the Opus types (migrations,
+  authentication or authorization, tenant isolation, payment, billing, or
+  financial records, changes to how audit entries are written but not features
+  that only add one, changes to how sensitive data is encrypted, masked, or
+  revealed or new paths that could leak it, and data deletion). When a diff
+  touches an Opus type, read `~/.claude/docs/opus-review.md` and run the Opus
+  review it describes. A user's
+  approval of a plan does not replace review.
 - Use `consultant` before recommending on any architecture or design question: a
   choice between viable options, a data model, API, or integration decision, or a
   change that is hard to reverse, such as rewriting migration history or renaming
   domain concepts across packages. Skip it only when the answer is obvious or the
   question is a small lookup. Also use it for a bug that two attempts have not
   fixed. Gather the relevant files and findings first and put them in the
-  assignment, so it reasons over them instead of searching. State a tighter
+  assignment, so it reasons over them instead of searching. Include the AGENTS.md
+  sections and specs that state a rule on the topic (grep for it), because a
+  consultant that sees only code argues from a stale comment. State a tighter
   tool-call budget for a narrow question.
 - Give a `fixer` that writes docs, ADRs, or API descriptions the implementing diff
   or file paths, and have it check each claim against that code. A brief alone
@@ -59,7 +65,14 @@ guards, schema, or tests.
   with the repo's own linter, autofixing only those paths, not its repo-wide
   lint or fix command),
   and never a test project that shares a database with another running fixer. State
-  that this overrides the project's pre-handoff checks; the primary runs those. Run the full
+  that this overrides the project's pre-handoff checks; the primary runs those.
+  Tell it to also run the type-check for its owned paths and the project's
+  database-free guard specs when the repo names them (for example `pnpm test:guards`).
+  For rename and move assignments, grep the repo's root `test/` for the old paths
+  and names first, and list each matching spec as an owned file, because guard
+  specs hard-code paths and fixtures. For rename assignments, tell it to change prose and identifiers only and to leave
+  stored codes (audit actions, module keys, table names), import paths, and SQL
+  literals unchanged unless the assignment lists them. Run the full
   lint, type-check, and test suites once yourself, after integration, and never
   two test runs at once.
 - Integrate changes before reviewing the combined result. Use independent review
@@ -80,3 +93,7 @@ return the result to the primary agent. Leave further delegation to the primary.
 
 Search with Grep/Glob, not shell grep/find (zsh errors on unquoted globs). When
 Grep is unavailable, use `git grep`, which skips untracked build output. Edit files with Edit, not `sed -i` (BSD sed on macOS differs) or scripted string replacement: a pattern that no longer matches changes nothing and reports success, while Edit fails loudly.
+
+In zsh, quote words that start with `=` (`echo '====='`), which zsh otherwise
+expands as a command path. Write temporary files to the session scratchpad, never
+to a relative path outside the repository.
