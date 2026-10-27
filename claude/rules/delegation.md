@@ -26,10 +26,10 @@ guards, schema, or tests.
   - tenant-isolation scoping
   - payment, billing, or financial record logic (balances, fund allocations,
     closed-period locks)
-  - audit logging, including atomic change-and-audit writes and the fields audit
-    entries record
-  - sensitive or personal data handling: encryption, masking, reveal routes, and
-    anything that could copy it into logs, errors, or audit entries
+  - changes to how audit entries are written or which fields they record, not
+    features that only add an entry through the existing mechanism
+  - changes to how sensitive or personal data is encrypted, masked, or revealed,
+    or new paths that could copy it into logs, errors, or audit entries
   - data deletion
 
   For the Opus types, also run one Opus review without asking the user: spawn
