@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a local, seeded fixer smoke benchmark; requires Python 3.9+ and Codex CLI."""
+"""Run a local, seeded fixer smoke benchmark; requires Python 3.9+ and the Codex or Claude Code CLI."""
 import argparse
 import difflib
 import hashlib
@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGET = 'tools/session-usage.py'
 TEST = 'tests/test_session_usage.py'
 MODELS = ('gpt-6.1-terra', 'gpt-6.1-sol')
+PROVIDER_MODELS = {'codex': MODELS, 'claude': ('claude-sonnet-5-5', 'claude-opus-5-5')}
+INSTRUCTION_FILES = {'codex': 'AGENTS.md', 'claude': 'CLAUDE.md'}
 NOTICE = ('Seeded smoke benchmark, not a measure of real task quality. '
           'API token prices are not billed cost; no monetary estimate is calculated.')
 # Every replacement changes one line and is checked against the untouched suite.
@@ -57,8 +59,8 @@ def execute(command, cwd, timeout, stdout, stderr):
     return result
 
 
-def populate(directory, source, tests, instructions):
-    for name, data in ((TARGET, source), (TEST, tests), ('AGENTS.md', instructions)):
+def populate(directory, source, tests, instructions, instruction_file='AGENTS.md'):
+    for name, data in ((TARGET, source), (TEST, tests), (instruction_file, instructions)):
         path = directory / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
@@ -102,24 +104,55 @@ def event_usage(path):
     return usage, errors
 
 
-def run_model(model, task, source, tests, instructions, artifact, timeout):
+def claude_usage(path):
+    """Parse defensively: use the final stream-json result event, if any."""
+    usage, errors = [], []
+    results = 0
+    for line in path.read_text(errors='replace').splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(event, dict) or event.get('type') != 'result':
+            continue
+        results += 1
+        if event.get('is_error') is not False:
+            errors.append(event)
+        if isinstance(event.get('usage'), dict):
+            usage.append(event['usage'])
+    if not results:
+        errors.append({'type': 'missing_result_event'})
+    return usage, errors
+
+
+def run_model(model, task, source, tests, instructions, artifact, timeout, provider='codex'):
     artifact.mkdir()
     with tempfile.TemporaryDirectory(prefix='fixer-task-') as temporary:
         directory = Path(temporary)
-        populate(directory, source, tests, instructions)
+        instruction_file = INSTRUCTION_FILES[provider]
+        populate(directory, source, tests, instructions, instruction_file)
         before = snapshot(directory)
         prompt = (f'Fix the regression in {TARGET}. {task[1]} '
-                  f'Run the existing {TEST} suite. Edit only {TARGET}; do not edit tests or AGENTS.md. '
+                  f'Run the existing {TEST} suite. Edit only {TARGET}; do not edit tests or {instruction_file}. '
                   'Work directly without delegation or subagents. Report the fix and validation.')
-        command = ['codex', 'exec', '--ignore-user-config', '--ephemeral', '--skip-git-repo-check',
-                   '--sandbox', 'workspace-write', '--json', '-m', model,
-                   '-c', 'model_reasoning_effort="medium"', '-C', str(directory), prompt]
+        if provider == 'claude':
+            command = ['claude', '-p', prompt, '--model', model, '--effort', 'medium',
+                       '--output-format', 'stream-json', '--verbose', '--no-session-persistence',
+                       '--setting-sources', 'project', '--disable-slash-commands',
+                       '--permission-mode', 'acceptEdits',
+                       '--tools', 'Read,Edit,Write,Glob,Grep,Bash',
+                       '--allowedTools', 'Read,Edit,Write,Glob,Grep,Bash(python3 *)',
+                       '--disallowedTools', 'Agent']
+        else:
+            command = ['codex', 'exec', '--ignore-user-config', '--ephemeral', '--skip-git-repo-check',
+                       '--sandbox', 'workspace-write', '--json', '-m', model,
+                       '-c', 'model_reasoning_effort="medium"', '-C', str(directory), prompt]
         result = execute(command, directory, timeout, artifact / 'events.jsonl', artifact / 'stderr.log')
         after = snapshot(directory)
         changed = sorted(name for name in before.keys() | after.keys() if before.get(name) != after.get(name))
-        result.update(model=model, task=task[0], changed_files=changed,
+        result.update(provider=provider, model=model, task=task[0], changed_files=changed,
                       outside_scope=[name for name in changed if name != TARGET])
-        usage, errors = event_usage(artifact / 'events.jsonl')
+        usage, errors = (claude_usage if provider == 'claude' else event_usage)(artifact / 'events.jsonl')
         result.update(usage=usage, event_errors=errors)
         target = directory / TARGET
         safe_target = target.is_file() and not target.is_symlink() and not target.parent.is_symlink()
@@ -143,6 +176,7 @@ def run_model(model, task, source, tests, instructions, artifact, timeout):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--provider', choices=sorted(PROVIDER_MODELS), default='codex')
     parser.add_argument('--limit', type=int, choices=range(1, 6), default=5)
     parser.add_argument('--timeout', type=float, default=180)
     parser.add_argument('--output', type=Path, help='new output directory outside this repository (default: temporary directory)')
@@ -159,10 +193,14 @@ def main(argv=None):
         output = Path(tempfile.mkdtemp(prefix='fixer-benchmark-'))
     print(f'Artifacts: {output}', flush=True)
     source, tests = (ROOT / TARGET).read_bytes(), (ROOT / TEST).read_bytes()
-    instructions = (re.search(r'(?ms)^developer_instructions\s*=\s*"""\n(.*?)^"""',
-                              (ROOT / 'codex/fixer.toml').read_text()).group(1)
-                    + '\nWork directly. Do not delegate or spawn subagents.\n').encode()
-    summary = {'notice': NOTICE, 'effort': 'medium', 'dry_run': args.dry_run, 'validation': [], 'runs': []}
+    if args.provider == 'claude':
+        body = re.sub(r'\A---\n.*?\n---\n', '', (ROOT / 'claude/fixer.md').read_text(), count=1, flags=re.S).lstrip('\n')
+    else:
+        body = re.search(r'(?ms)^developer_instructions\s*=\s*"""\n(.*?)^"""',
+                         (ROOT / 'codex/fixer.toml').read_text()).group(1)
+    instructions = (body + '\nWork directly. Do not delegate or spawn subagents.\n').encode()
+    models = PROVIDER_MODELS[args.provider]
+    summary = {'notice': NOTICE, 'provider': args.provider, 'effort': 'medium', 'dry_run': args.dry_run, 'validation': [], 'runs': []}
     baseline = evaluate(source, tests, output / 'baseline')
     summary['baseline'] = baseline
     valid = baseline['exit_code'] == 0 and not baseline['error'] and not baseline['timed_out']
@@ -181,14 +219,16 @@ def main(argv=None):
         mutated.append((task, candidate))
     if valid and not args.dry_run:
         for index, (task, candidate) in enumerate(mutated[:args.limit]):
-            for model in MODELS[::1 if index % 2 == 0 else -1]:
+            for model in models[::1 if index % 2 == 0 else -1]:
                 print(f'{task[0]}: {model}', flush=True)
                 summary['runs'].append(run_model(model, task, candidate, tests, instructions,
-                                                 output / f'{index + 1}-{task[0]}-{model}', args.timeout))
+                                                 output / f'{index + 1}-{task[0]}-{model}', args.timeout,
+                                                 provider=args.provider))
     summary['infrastructure_failure'] = not valid or any(r['status'] == 'infrastructure_error' for r in summary['runs'])
     (output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+    source_event = 'result event' if args.provider == 'claude' else 'turn.completed'
     lines = [NOTICE, '', f'Seed validation: {"passed" if valid else "FAILED"}', '',
-             '| Task | Model | Status | Seconds | Usage from turn.completed |', '| --- | --- | --- | ---: | --- |']
+             f'| Task | Model | Status | Seconds | Usage from {source_event} |', '| --- | --- | --- | ---: | --- |']
     for run in summary['runs']:
         lines.append(f"| {run['task']} | {run['model']} | {run['status']} | {run['duration_seconds']} | {json.dumps(run['usage'])} |")
     (output / 'summary.md').write_text('\n'.join(lines) + '\n')
