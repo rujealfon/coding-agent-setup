@@ -133,16 +133,6 @@ class UninstallTests(unittest.TestCase):
         self.assertIn('sandbox_mode = "read-only"\n', installed)
         self.assertNotIn("reasoning_effort", installed)
 
-    def test_chief_inspector_matches_inspector_permissions(self):
-        def front(path):
-            return (ROOT / path).read_text().split("---\n", 2)[1]
-        oc = lambda n: front(f"opencode/{n}.md").split("permissions:\n", 1)[1]
-        self.assertEqual(oc("chief-inspector"), oc("inspector"))
-        gk = lambda n: [l for l in front(f"grok/{n}.md").splitlines() if l.startswith("capabilityMode")]
-        self.assertEqual(gk("chief-inspector"), gk("inspector"))
-        cl = lambda n: [l for l in front(f"claude/{n}.md").splitlines() if l.startswith("tools:")]
-        self.assertEqual(cl("chief-inspector"), cl("inspector"))
-
     def test_claude_chief_inspector_model_effort_and_turns(self):
         installed = (self.home / ".claude/agents/chief-inspector.md").read_text()
         self.assertEqual(installed, (ROOT / "claude/chief-inspector.md").read_text())
@@ -150,7 +140,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("name: chief-inspector", lines)
         self.assertIn("model: claude-opus-5-5", lines)
         self.assertIn("effort: high", lines)
-        self.assertIn("maxTurns: 40", lines)
+        self.assertIn("maxTurns: 60", lines)
 
     def test_customized_opencode_consultant_blocks_upgrade_without_mutation(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-opencode.json").read_text())

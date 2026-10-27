@@ -27,11 +27,13 @@ ESCALATION_PHRASES = [
     "once, on the final diff before the PR",
     "without asking first",
     "not the earlier `inspector`'s findings",
-    "rerun",
     "only if the fix itself is high-risk",
     "A user's approval of a plan does not replace review.",
 ]
 INDEPENDENCE = "Review independently; you will not receive earlier review findings."
+PREAMBLE_START = INDEPENDENCE + " Look for"
+PREAMBLE_END = "bypasses of checks, and silent or irreversible failures."
+INTENDED_KEYS = r"^(name|description|model|effort)\s*[:=]"
 
 
 def normalize(text):
@@ -55,12 +57,24 @@ def high_risk_items(relative):
     while end > 0 and not lines[end - 1].strip():
         end -= 1
     start = end
-    while start > 0 and re.match(r"^  - |^    \S", lines[start - 1]):
+    item_indent = None
+    while start > 0:
+        line = lines[start - 1]
+        marker = re.match(r"^(\s+)- ", line)
+        if marker:
+            item_indent = len(marker.group(1))
+        elif item_indent is not None and not (
+            line.strip() and len(line) - len(line.lstrip()) > item_indent
+        ):
+            break
+        elif item_indent is None and not re.match(r"^\s+\S", line):
+            break
         start -= 1
     items = []
     for line in lines[start:end]:
-        if line.startswith("  - "):
-            items.append(line[4:])
+        marker = re.match(r"^(\s+)- (.*)", line)
+        if marker and len(marker.group(1)) == item_indent:
+            items.append(marker.group(2))
         else:
             items[-1] += " " + line
     items = [normalize(item) for item in items]
@@ -77,6 +91,18 @@ def escalation_paragraph(relative):
             break
         paragraph.append(line)
     return normalize(" ".join(paragraph))
+
+
+def without_intended_differences(lines, drop_preamble):
+    lines = [line for line in lines if not re.match(INTENDED_KEYS, line)]
+    if drop_preamble:
+        start = next(
+            (i for i, line in enumerate(lines) if line.startswith(PREAMBLE_START)), None
+        )
+        if start is None or not lines[start + 2].startswith(PREAMBLE_END):
+            raise AssertionError("independence preamble not found")
+        del lines[start : start + 3]
+    return lines
 
 
 class PolicySyncTests(unittest.TestCase):
@@ -99,6 +125,17 @@ class PolicySyncTests(unittest.TestCase):
         for relative in CHIEF_INSPECTORS:
             text = normalize((ROOT / relative).read_text())
             self.assertIn(INDEPENDENCE, text, f"{relative} lacks the independence instruction")
+
+    def test_chief_inspectors_copy_their_inspector(self):
+        for chief in CHIEF_INSPECTORS:
+            inspector = chief.replace("chief-inspector", "inspector")
+            with self.subTest(chief=chief):
+                expected = without_intended_differences(read_lines(inspector), False)
+                actual = without_intended_differences(read_lines(chief), True)
+                diff = "\n".join(
+                    difflib.unified_diff(expected, actual, inspector, chief, lineterm="")
+                )
+                self.assertEqual(actual, expected, f"{chief} differs from {inspector}:\n{diff}")
 
 
 if __name__ == "__main__":

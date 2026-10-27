@@ -50,10 +50,11 @@ subagents.
 - Use `default` for bounded mixed investigation and implementation when no
   specialist fits.
 - Use each agent's configured model. Choose supported effort at spawn time:
-  runner low; tracker, fixer, inspector, and default medium; consultant low for
-  bounded advice. Raise effort for consequential unresolved decisions or complex
-  investigation, implementation, or security review. Respect explicit user effort
-  requests; route simple lookups to runner rather than default.
+  runner low; tracker, fixer, inspector, and default medium; chief-inspector the
+  highest it supports; consultant low for bounded advice. Raise effort for
+  consequential unresolved decisions or complex investigation, implementation,
+  or security review. Respect explicit user effort requests; route simple
+  lookups to runner rather than default.
 - Prefer fresh, bounded context when supported. Include relevant project
   instructions, requirements, and evidence rather than unrelated history. Follow
   the spawn tool's context and effort constraints; supply a self-contained

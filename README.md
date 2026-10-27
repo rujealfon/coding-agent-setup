@@ -109,7 +109,7 @@ scope decisions, integration, and final verification in the primary conversation
 | `runner` | Bounded factual lookup or file discovery with references | Haiku 5.5, medium; max 15 turns, reports from 12 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
 | `fixer` | Implement an agreed change within owned files and verify it | Sonnet 5.5, medium; no turn limit; inherited tools, including shell, editing, skills, and MCP; Agent disabled |
 | `inspector` | Review a supplied diff for concrete defects and explain their impact | Sonnet 5.5, high; max 60 turns, reports from 50 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
-| `chief-inspector` | Independently re-review the final diff of a high-risk or deeper-reasoning change; use sparingly | Opus 5.5, high; max 40 turns, reports from 30 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
+| `chief-inspector` | Independently re-review the final diff of a high-risk or deeper-reasoning change; use sparingly | Opus 5.5, high; max 60 turns, reports from 50 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
 | `consultant` | Advise on architecture, design trade-offs, and stubborn bugs; use sparingly | Opus 5.5, high; max 30 turns, reports from 24 tool calls; Read, Glob, Grep, WebFetch, WebSearch |
 | `Explore` built-in | Trace behavior and dependencies across the codebase | Built-in read-only tools |
 | `Plan` built-in | Gather research during plan mode | Built-in read-only tools |
@@ -586,6 +586,7 @@ coding-agent-setup/
 │   │   ├── pre-consultant-opencode.json
 │   │   ├── pre-detective-install.json
 │   │   └── shared-delegation.md
+│   ├── test_policy_sync.py
 │   ├── test_session_usage.py
 │   └── test_uninstall.py
 ├── tools/
@@ -616,6 +617,7 @@ coding-agent-setup/
 | `.github/workflows/publish.yml` | Runs those tests on `main`, then publishes when the version is not already on npm |
 | `tools/session-usage.py` | Read-only local Codex session usage report; not installed or published |
 | `tests/test_uninstall.py` | Tests installation, upgrades, removal, and preservation in temporary home directories |
+| `tests/test_policy_sync.py` | Checks that the four delegation policies share the high-risk list and escalation rules, and that each `chief-inspector` matches its `inspector` |
 | `tests/test_session_usage.py` | Synthetic tests for the local Codex usage report |
 | `tests/fixtures/shared-delegation.md` | Frozen shared policy for upgrade regression tests |
 | `tests/fixtures/pre-*.json` | Recorded earlier installs for upgrade regression tests |

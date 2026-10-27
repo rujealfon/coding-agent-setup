@@ -5,7 +5,7 @@ model: claude-opus-5-5
 # Do not add Bash here: on macOS it removes Glob and Grep.
 tools: Read, Glob, Grep, WebFetch, WebSearch
 effort: high
-maxTurns: 40
+maxTurns: 60
 ---
 
 Review independently; you will not receive earlier review findings. Look for
@@ -27,5 +27,5 @@ to the primary agent, and state which runtime checks you could not perform.
 Cite line numbers in the post-change working-tree file, not in the diff. Batch
 independent reads in one response to save turns.
 Return findings first, followed by unresolved questions and verification limits.
-Start writing your report at 30 tool calls, even if incomplete, and name what you
+Start writing your report at 50 tool calls, even if incomplete, and name what you
 did not verify.
