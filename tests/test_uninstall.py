@@ -17,6 +17,7 @@ POLICIES = {
     ".grok/rules/delegation.md": "grok/rules/delegation.md",
 }
 PRE_DETECTIVE = json.loads((ROOT / "tests/fixtures/pre-detective-install.json").read_text())
+PRE_REVERT = json.loads((ROOT / "tests/fixtures/pre-revert-chief-inspector.json").read_text())
 LEGACY_POLICY = (ROOT / "tests/fixtures/shared-delegation.md").read_bytes()
 
 
@@ -63,6 +64,74 @@ class UninstallTests(unittest.TestCase):
         self.assertFalse(consultant.exists())
         self.assertEqual(config.read_bytes(), before[config])
         self.assertEqual(len(list(self.home.rglob("*.bak-*"))), 2)
+
+    def write_pre_revert_install(self):
+        for name, contents in PRE_REVERT.items():
+            target = self.home / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(contents)
+
+    def test_chief_inspector_release_updates_back_with_exact_backups(self):
+        self.write_pre_revert_install()
+        retired = [name for name in PRE_REVERT if "chief-inspector" in name]
+        self.assertEqual(len(retired), 4)
+        runner = ".claude/agents/runner.md"
+        replaced = {**{name: source for name, source in POLICIES.items()}, runner: "claude/runner.md"}
+        before = self.snapshot(self.home)
+
+        preview = self.run_command("--update", "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
+        self.assertEqual(list(self.home.rglob("*.bak-*")), [])
+
+        updated = self.run_command("--update")
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        for name in retired:
+            self.assertFalse((self.home / name).exists(), name)
+        for name, source in replaced.items():
+            self.assertEqual((self.home / name).read_bytes(), (ROOT / source).read_bytes(), name)
+        for name in [*retired, *replaced]:
+            installed = self.home / name
+            backups = list(installed.parent.glob(installed.name + ".bak-*"))
+            self.assertEqual(len(backups), 1, name)
+            self.assertEqual(backups[0].read_text(), PRE_REVERT[name], name)
+        self.assertEqual(len(list(self.home.rglob("*.bak-*"))), len(PRE_REVERT))
+
+    def test_customized_chief_inspector_blocks_update_without_mutation(self):
+        self.write_pre_revert_install()
+        custom = self.home / ".claude/agents/chief-inspector.md"
+        custom.write_text("my own chief inspector\n")
+        before = self.snapshot(self.home)
+
+        updated = self.run_command("--update")
+        self.assertEqual(updated.returncode, 1)
+        self.assertIn("Unrecognized existing instructions or agent", updated.stderr)
+        self.assertIn(str(custom), updated.stderr)
+        self.assertEqual(self.snapshot(self.home), before)
+        self.assertEqual(list(self.home.rglob("*.bak-*")), [])
+
+    def test_tool_update_retires_only_that_tools_chief_inspector(self):
+        self.write_pre_revert_install()
+        updated = self.run_command("--tool", "claude", "--update")
+        self.assertEqual(updated.returncode, 0, updated.stderr)
+        retired = self.home / ".claude/agents/chief-inspector.md"
+        self.assertFalse(retired.exists())
+        backups = list(retired.parent.glob(retired.name + ".bak-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(), PRE_REVERT[".claude/agents/chief-inspector.md"])
+        for name, contents in PRE_REVERT.items():
+            if name.startswith(".claude/"):
+                continue
+            installed = self.home / name
+            self.assertEqual(installed.read_text(), contents, name)
+            self.assertEqual(list(installed.parent.glob(installed.name + ".bak-*")), [], name)
+
+    def test_uninstall_removes_chief_inspector_files(self):
+        self.write_pre_revert_install()
+        removed = self.run_command("--uninstall")
+        self.assertEqual(removed.returncode, 0, removed.stderr)
+        for name in PRE_REVERT:
+            self.assertFalse((self.home / name).exists(), name)
 
     def test_opencode_consultant_upgrade_backs_up_previous_files(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-opencode.json").read_text())

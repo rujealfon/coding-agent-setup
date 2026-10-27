@@ -553,6 +553,7 @@ coding-agent-setup/
 │   │   ├── pre-consultant-grok.json
 │   │   ├── pre-consultant-opencode.json
 │   │   ├── pre-detective-install.json
+│   │   ├── pre-revert-chief-inspector.json
 │   │   └── shared-delegation.md
 │   ├── test_session_usage.py
 │   └── test_uninstall.py

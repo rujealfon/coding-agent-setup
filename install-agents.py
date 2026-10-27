@@ -234,6 +234,10 @@ def main():
         ("grok", ".grok/agents/fast.md"),
         ("grok", ".grok/agents/worker.md"),
         ("grok", ".grok/agents/reviewer.md"),
+        ("codex", ".codex/agents/chief-inspector.toml"),
+        ("claude", ".claude/agents/chief-inspector.md"),
+        ("opencode", ".config/opencode/agents/chief-inspector.md"),
+        ("grok", ".grok/agents/chief-inspector.md"),
     ]
     prompted = not args.tool and sys.stdin.isatty() and sys.stdout.isatty()
     selected = resolve_tools(parser, args)
