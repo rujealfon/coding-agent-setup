@@ -1,9 +1,9 @@
 {
-  "name": "@rujealfon/coding-agent-setup",
+  "name": "@rujealfon/detective-crew-agents",
   "version": "1.3.1",
-  "description": "Install Codex, Claude Code, OpenCode, and Grok Build agent setup files.",
+  "description": "Detective Crew agents for Codex, Claude Code, OpenCode, and Grok Build.",
   "bin": {
-    "coding-agent-setup": "./bin/coding-agent-setup"
+    "detective-crew-agents": "./bin/detective-crew-agents"
   },
   "files": [
     "bin",
@@ -17,11 +17,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rujealfon/coding-agent-setup.git"
+    "url": "git+https://github.com/rujealfon/detective-crew-agents.git"
   },
-  "homepage": "https://github.com/rujealfon/coding-agent-setup#readme",
+  "homepage": "https://github.com/rujealfon/detective-crew-agents#readme",
   "bugs": {
-    "url": "https://github.com/rujealfon/coding-agent-setup/issues"
+    "url": "https://github.com/rujealfon/detective-crew-agents/issues"
   },
   "engines": {
     "node": ">=18"

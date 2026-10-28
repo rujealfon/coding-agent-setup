@@ -15,7 +15,7 @@ done
 ROOT=$(CDPATH= cd -- "$(dirname "$SOURCE")/.." && pwd)
 
 if ! command -v python3 >/dev/null 2>&1; then
-  echo "coding-agent-setup needs Python 3." >&2
+  echo "detective-crew-agents needs Python 3." >&2
   exit 1
 fi
 exec python3 "$ROOT/install-agents.py" "$@"
