@@ -288,8 +288,8 @@ when no effort is selected at spawn time, omit
 medium fallback, set it to `"medium"`. Explicit spawn effort takes precedence over
 that global default either way. Routine reviews start at medium; state a concrete
 reason when escalating effort. See the installable
-[context and token-use reference](../codex/docs/token-usage.md) for session
-handoffs, skill reuse, and matched-task measurement.
+[context and token-use reference](../codex/docs/token-usage.md) for matched-task
+measurement. Session handoffs and skill reuse are covered in the Codex policy.
 
 Claude agent files set a default `effort` in their frontmatter: medium for `runner`
 and `fixer`, and high for `inspector` and `consultant`. The delegation

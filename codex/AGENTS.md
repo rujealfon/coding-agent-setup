@@ -23,14 +23,14 @@ integration, and final verification in the primary agent. Respect requests to wo
 - Subagents complete their assignment directly; leave further delegation and
   integration to the primary. Return evidence and missing context rather than expanding scope.
 
-## Context and token use
+## Context management
 
 Load relevant skills once per agent; reread only changed or lost material. Read
 linked references on demand. Keep tool output scoped and summarize large logs.
 Follow explicit skills and project verification requirements even when costly.
 At a natural boundary before unrelated work or a substantial new phase, offer a
 short handoff for a fresh session. Finish authorized work; never silently stop or reset it.
-For usage audits, comparisons, handoffs, or tuning this policy, read
-[the token-usage reference](docs/token-usage.md). Keep detailed reports out of always-loaded instructions.
+Record the objective, repository/branch/commit, decisions, remaining work, checks
+and log paths, and authorization limits. Read the handoff in the new session.
 
 Keep changes to this delegation setup synchronized with its detective-crew-agents source clone.

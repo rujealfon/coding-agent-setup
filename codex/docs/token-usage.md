@@ -1,22 +1,5 @@
 # Context and token use
 
-Keep one cohesive objective per session. At a natural boundary before unrelated
-work or a substantial new phase, offer a fresh-session handoff. Finish authorized
-work first. The handoff should record objective, repository/branch/commit, decisions,
-remaining work, checks and log paths, and authorization limits. Read that handoff
-in the new session instead of copying the whole conversation.
-
-Delegate substantial independent work or assessments that improve quality. Use
-fresh bounded context when supported, and reuse an agent for related follow-up.
-Keep configured models. Start routine work and reviews at medium effort; use low
-for runner and bounded consultant tasks. Raise effort for a specific difficult
-issue or explicit request, stating the reason in the assignment. Preserve required
-independent reviews and project checks.
-
-Read relevant skills once per agent, references only when needed; reread changed
-or lost material. Keep searches, diffs, and tool output scoped. Reuse verification
-that remains valid after subsequent changes. Return concise evidence and blockers.
-
 ## Optional Codex fallback
 
 Custom agent files intentionally omit fixed effort so assignments can select it.

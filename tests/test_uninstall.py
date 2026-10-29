@@ -35,7 +35,7 @@ class UninstallTests(unittest.TestCase):
         reference = self.home / ".codex/docs/token-usage.md"
         self.assertEqual(reference.read_bytes(), (ROOT / "codex/docs/token-usage.md").read_bytes())
         policy = (self.home / ".codex/AGENTS.md").read_text()
-        self.assertIn("docs/token-usage.md", policy)
+        self.assertNotIn("docs/token-usage.md", policy)
         result = self.run_command("--tool", "codex", "--uninstall")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(reference.exists())
