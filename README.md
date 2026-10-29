@@ -153,3 +153,6 @@ python3 -B -m unittest discover -s tests -v
 ## License
 
 [MIT](LICENSE), copyright 2026 Ruje Alfon.
+
+Codex also installs [context and token-use guidance](codex/docs/token-usage.md)
+to `~/.codex/docs/token-usage.md`, linked from its global policy.

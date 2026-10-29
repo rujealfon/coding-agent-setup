@@ -69,6 +69,7 @@ detective-crew-agents/
 | Path | Purpose |
 | --- | --- |
 | `codex/*.toml` | Codex agent definitions |
+| `codex/docs/token-usage.md` | Installable context, delegation effort, and usage guidance |
 | `claude/*.md` | Claude Code agent definitions |
 | `opencode/{runner,fixer,inspector,consultant}.md` | OpenCode v2 agent definitions |
 | `opencode/opencode.jsonc` | OpenCode v2 built-in `explore` and `general` model and description overrides |
