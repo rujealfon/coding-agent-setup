@@ -29,7 +29,17 @@ class UninstallTests(unittest.TestCase):
         installed = self.run_command()
         self.assertEqual(installed.returncode, 0, installed.stderr)
         self.installed_files = [path for path in self.home.rglob("*") if path.is_file()]
-        self.assertEqual(len(self.installed_files), 24)
+        self.assertEqual(len(self.installed_files), 25)
+
+    def test_codex_token_reference_is_installed_and_removed(self):
+        reference = self.home / ".codex/docs/token-usage.md"
+        self.assertEqual(reference.read_bytes(), (ROOT / "codex/docs/token-usage.md").read_bytes())
+        policy = (self.home / ".codex/AGENTS.md").read_text()
+        self.assertNotIn("docs/token-usage.md", policy)
+        result = self.run_command("--tool", "codex", "--uninstall")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(reference.exists())
+        self.assertTrue((self.home / ".claude/rules/delegation.md").exists())
 
     def test_codex_consultant_upgrade_backs_up_previous_files(self):
         previous = json.loads((ROOT / "tests/fixtures/pre-consultant-codex.json").read_text())
@@ -859,7 +869,7 @@ class UninstallTests(unittest.TestCase):
         self.assertIn("Install scope", output)
         self.assertIn("Selected: all", output)
         self.assertGreaterEqual(output.count("●"), len(("codex", "claude", "opencode", "grok")) + 1)
-        self.assertEqual(len(self.installed_relative_paths(home)), 24)
+        self.assertEqual(len(self.installed_relative_paths(home)), 25)
 
     def test_interactive_update_confirms_the_highlighted_scope(self):
         before = {path: path.read_bytes() for path in self.installed_files}
@@ -918,6 +928,7 @@ class UninstallTests(unittest.TestCase):
                 ".codex/agents/tracker.toml",
                 ".codex/agents/default.toml",
                 ".codex/AGENTS.md",
+                ".codex/docs/token-usage.md",
                 ".grok/agents/runner.md",
                 ".grok/agents/fixer.md",
                 ".grok/agents/inspector.md",
@@ -934,7 +945,7 @@ class UninstallTests(unittest.TestCase):
         )
         self.assertEqual(returncode, 0, output)
         self.assertIn("Selected: all", output)
-        self.assertEqual(len(self.installed_relative_paths(home)), 24)
+        self.assertEqual(len(self.installed_relative_paths(home)), 25)
 
     def test_interactive_cancel_is_red_and_changes_nothing(self):
         home = self.fresh_home("interactive-cancel")

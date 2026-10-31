@@ -1,51 +1,36 @@
 ## Delegation
 
-Apply this delegation policy in Codex sessions.
+Implement cohesive tasks directly. Delegate substantial independent work when
+parallel progress or independent assessment improves the result. Keep scope,
+integration, and final verification in the primary agent. Respect requests to work solo.
 
-When acting as the primary agent, implement cohesive tasks directly. Delegate
-substantial independent work when parallel progress or a separate assessment
-materially improves speed or quality. Keep scope decisions, integration, and final
-verification in the primary agent. Respect explicit requests to work without
-subagents.
+- runner: bounded read-only lookups; tracker: read-only tracing across files.
+- fixer: defined edits and focused checks; inspector: independent diff review.
+- consultant: unresolved design trade-offs or a bug surviving two evidence-based attempts.
+- default: bounded mixed work with no matching specialist.
+- Keep configured models. Default to medium effort; runner and bounded consultant
+  tasks use low. Raise effort for a specific difficult decision or defect, or when
+  requested; state the reason in the assignment. Routine reviews start at medium.
+- Use fresh context (`fork_turns: "none"`) for bounded assignments when supported.
+  Supply objective, relevant paths/instructions, ownership or read-only scope,
+  acceptance criteria, and expected evidence. Reviewers also need baseline and checks.
+- Resolve decisions before dependent implementation. Parallel edits need distinct
+  ownership; agents must preserve others' changes. Reuse an agent for related follow-up.
+- Integrate before independent review of meaningful changes, especially auth,
+  encryption, migrations, and data integrity. Give multiple reviewers distinct scopes.
+- Workers run focused checks; the primary runs repository-wide checks. Reuse evidence
+  unless later changes or unresolved concerns invalidate it. Resolve confirmed findings.
+- Subagents complete their assignment directly; leave further delegation and
+  integration to the primary. Return evidence and missing context rather than expanding scope.
 
-- Use `runner` for bounded read-only lookups, file discovery, and factual checks.
-- Use `tracker` to trace behavior, dependencies, and likely causes across files
-  without editing code.
-- Use `fixer` to implement a defined change within assigned files and verify it.
-- Use `inspector` for independent assessment of a specified diff for correctness,
-  regressions, security issues, and missing validation.
-- Use `consultant` before dependent implementation when architecture or design
-  trade-offs remain unresolved, or when two evidence-based attempts have not fixed
-  a difficult bug. Provide relevant context, constraints, options, and previous
-  attempts. Use sparingly for decisions requiring deeper reasoning; the primary
-  agent resolves the recommendation before assigning dependent work.
-- Use `default` for bounded mixed investigation and implementation when no
-  specialist fits.
-- Use each agent's configured model. Choose supported effort at spawn time:
-  runner low; tracker, fixer, inspector, and default medium; consultant low for
-  bounded advice. Raise effort for consequential unresolved decisions or complex
-  investigation, implementation, or security review. Respect explicit user effort
-  requests; route simple lookups to runner rather than default.
-- Prefer fresh, bounded context when supported. Include relevant project
-  instructions, requirements, and evidence rather than unrelated history. Follow
-  the spawn tool's context and effort constraints; supply a self-contained
-  assignment when selecting effort requires a fresh context.
-- Give each assignment its objective, relevant context, file ownership or read-only
-  scope, acceptance criteria, and expected evidence. Give inspectors the diff,
-  baseline, requirements, and available test results.
-- Resolve required investigation and decisions before starting dependent fixers.
-  Parallelize independent work with distinct file ownership to avoid edit conflicts.
-- Integrate changes before reviewing the combined result. Use independent review
-  for meaningful changes, including authentication, authorization, encryption,
-  migrations, and data integrity. Solo implementation can still receive a scoped
-  inspector review. Keep reviewers' responsibilities distinct when multiple
-  reviews are required by project instructions or skills.
-- Assign focused checks to workers and repository-wide verification to the primary
-  agent after integration and review fixes. Reuse reported evidence; rerun checks
-  when subsequent changes, failures, or unresolved concerns justify it.
-- Resolve missing context and scope dependencies in the primary agent, then resume
-  the subagent with the additional context. Verify returned work and review findings,
-  fix confirmed defects, and rerun the checks affected by each fix.
+## Context management
 
-When acting as a delegated subagent, complete the assigned task directly and
-return the result to the primary agent. Leave further delegation to the primary.
+Load relevant skills once per agent; reread only changed or lost material. Read
+linked references on demand. Keep tool output scoped and summarize large logs.
+Follow explicit skills and project verification requirements even when costly.
+At a natural boundary before unrelated work or a substantial new phase, offer a
+short handoff for a fresh session. Finish authorized work; never silently stop or reset it.
+Record the objective, repository/branch/commit, decisions, remaining work, checks
+and log paths, and authorization limits. Read the handoff in the new session.
+
+Keep changes to this delegation setup synchronized with its detective-crew-agents source clone.

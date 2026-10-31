@@ -202,6 +202,7 @@ def main():
         ("codex/tracker.toml", ".codex/agents/tracker.toml"),
         ("codex/default.toml", ".codex/agents/default.toml"),
         ("codex/AGENTS.md", ".codex/AGENTS.md"),
+        ("codex/docs/token-usage.md", ".codex/docs/token-usage.md"),
         ("claude/runner.md", ".claude/agents/runner.md"),
         ("claude/fixer.md", ".claude/agents/fixer.md"),
         ("claude/inspector.md", ".claude/agents/inspector.md"),
